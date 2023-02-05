@@ -1,4 +1,4 @@
-using System.Linq;
+ï»¿using System.Linq;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -6,13 +6,30 @@ using UnityEditor;
 
 public class DuplicateSpecialToolEditor : EditorWindow
 {
+    private GUIStyle optionLabelStyle;
+
     // Property: Number of copies.
     private int numOfCopies;
     private readonly string numOfCopiesTooltip = "Specify the number of copies to create from the selected GameObject." +
                                                  "The range is from 1 to 1000.";
-    private Vector3 transformProp;
-    private Vector3 rotationProp;
-    private Vector3 scaleProp;
+
+    // Property: Translate (Offset).
+    private Vector3 positionProp = Vector3.zero;
+    private bool isDefaultPosition;
+    private readonly string positionTooltip = "Specify the number of copies to create from the selected GameObject." +
+                                                 "The range is from 1 to 1000.";
+
+    // Property: Rotate (Offset).
+    private Vector3 rotationProp = Vector3.zero;
+    private bool isDefaultRotation;
+    private readonly string rotationTooltip = "Specify the number of copies to create from the selected GameObject." +
+                                                 "The range is from 1 to 1000.";
+
+    // Property: Scale (Offset).
+    private Vector3 scaleProp = Vector3.one;
+    private bool isDefaultScale;
+    private readonly string scaleTooltip = "Specify the number of copies to create from the selected GameObject." +
+                                                 "The range is from 1 to 1000.";
 
     #region Menu Item + Validation
     /// <summary>
@@ -36,6 +53,15 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
     private void OnGUI()
     {
+        optionLabelStyle = new GUIStyle(GUI.skin.label)
+        {
+            alignment = TextAnchor.MiddleLeft,
+            margin = new RectOffset(),
+            padding = new RectOffset(),
+            fontSize = 15,
+            fontStyle = FontStyle.Bold
+        };
+
         GUILayout.Label("Select a group or groups of objects and alter the selection(s) in various ways, " +
                         "such as transform, rotate, or flip (mirror)!", EditorStyles.largeLabel);
 
@@ -43,6 +69,51 @@ public class DuplicateSpecialToolEditor : EditorWindow
         numOfCopies = EditorGUILayout.IntSlider(numOfCopiesContent, numOfCopies, 0, 1000);
 
         DrawLine(GetColorFromHexString("#34aeeb"), 1, 4f);
+
+        GUILayout.BeginHorizontal();
+        GUIContent positionContent = new GUIContent("Translate (Offset):", positionTooltip);
+        positionProp = EditorGUILayout.Vector3Field(positionContent, positionProp);
+        isDefaultPosition = positionProp == Vector3.zero;
+
+        GUI.backgroundColor = isDefaultPosition ? Color.white : Color.green;
+        GUI.enabled = !isDefaultPosition;
+        if (GUILayout.Button("â†º"))
+        {
+            ResetTransformProperty(ref positionProp, Vector3.zero);
+        }
+        GUI.enabled = true;
+        GUI.backgroundColor = Color.white;
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        GUIContent rotationContent = new GUIContent("Rotate (Offset):", rotationTooltip);
+        rotationProp = EditorGUILayout.Vector3Field(rotationContent, rotationProp);
+        isDefaultRotation = rotationProp == Vector3.zero;
+
+        GUI.backgroundColor = isDefaultRotation ? Color.white : Color.green;
+        GUI.enabled = !isDefaultRotation;
+        if (GUILayout.Button("â†º"))
+        {
+            ResetTransformProperty(ref rotationProp, Vector3.zero);
+        }
+        GUI.enabled = true;
+        GUI.backgroundColor = Color.white;
+        GUILayout.EndHorizontal();
+
+        GUILayout.BeginHorizontal();
+        GUIContent scaleContent = new GUIContent("Scale (Offset):", scaleTooltip);
+        scaleProp = EditorGUILayout.Vector3Field(scaleContent, scaleProp);
+        isDefaultScale = scaleProp == Vector3.one;
+
+        GUI.backgroundColor = isDefaultScale ? Color.white : Color.green;
+        GUI.enabled = !isDefaultScale;
+        if (GUILayout.Button("â†º"))
+        {
+            ResetTransformProperty(ref scaleProp, Vector3.one);
+        }
+        GUI.enabled = true;
+        GUI.backgroundColor = Color.white;
+        GUILayout.EndHorizontal();
 
 
         //showTool = EditorGUILayout.Foldout(showTool, "Group Transform");
@@ -65,21 +136,21 @@ public class DuplicateSpecialToolEditor : EditorWindow
         //        else
         //        {
         //            GUILayout.BeginHorizontal();
-        //            if (GUILayout.Button("5°")) { RotateGroup(5f); }
-        //            if (GUILayout.Button("15°")) { RotateGroup(15f); }
-        //            if (GUILayout.Button("30°")) { RotateGroup(30f); }
+        //            if (GUILayout.Button("5Â°")) { RotateGroup(5f); }
+        //            if (GUILayout.Button("15Â°")) { RotateGroup(15f); }
+        //            if (GUILayout.Button("30Â°")) { RotateGroup(30f); }
         //            GUILayout.EndHorizontal();
 
         //            GUILayout.BeginHorizontal();
-        //            if (GUILayout.Button("45°")) { RotateGroup(45f); }
-        //            if (GUILayout.Button("60°")) { RotateGroup(60f); }
-        //            if (GUILayout.Button("90°")) { RotateGroup(90f); }
+        //            if (GUILayout.Button("45Â°")) { RotateGroup(45f); }
+        //            if (GUILayout.Button("60Â°")) { RotateGroup(60f); }
+        //            if (GUILayout.Button("90Â°")) { RotateGroup(90f); }
         //            GUILayout.EndHorizontal();
 
         //            GUILayout.BeginHorizontal();
-        //            if (GUILayout.Button("120°")) { RotateGroup(120f); }
-        //            if (GUILayout.Button("180°")) { RotateGroup(180f); }
-        //            if (GUILayout.Button("270°")) { RotateGroup(270f); }
+        //            if (GUILayout.Button("120Â°")) { RotateGroup(120f); }
+        //            if (GUILayout.Button("180Â°")) { RotateGroup(180f); }
+        //            if (GUILayout.Button("270Â°")) { RotateGroup(270f); }
         //            GUILayout.EndHorizontal();
         //        }
         //        rotationDirection = (Direction)EditorGUILayout.EnumPopup("Direction", rotationDirection);
@@ -102,6 +173,11 @@ public class DuplicateSpecialToolEditor : EditorWindow
         //}
     }
 
+    private void ResetTransformProperty(ref Vector3 v, Vector3 defaultValue)
+    {
+        v = defaultValue;
+    }
+
     #region Miscellaneous
     /// <summary>
     /// Get color from hex string.
@@ -115,10 +191,12 @@ public class DuplicateSpecialToolEditor : EditorWindow
         return color;
     }
 
+    /// <summary>
     /// Draws a line in the inspector.
     /// </summary>
-    /// <param name="lineColor">Hex color string.</param>
+    /// <param name="lineColor">Line color.</param>
     /// <param name="height">Line height.</param>
+    /// <param name="spacing">Spacing.</param>
     protected static void DrawLine(Color lineColor, int height, float spacing)
     {
         GUIStyle horizontalLine = new GUIStyle();
