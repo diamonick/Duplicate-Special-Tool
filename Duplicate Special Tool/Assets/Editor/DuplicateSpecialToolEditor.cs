@@ -8,6 +8,9 @@ public class DuplicateSpecialToolEditor : EditorWindow
 {
     private GUIStyle optionLabelStyle;
 
+    // Property: Selected GameObject.
+    private GameObject selectedGameObject;
+
     // Property: Number of copies.
     private int numOfCopies;
     private readonly string numOfCopiesTooltip = "Specify the number of copies to create from the selected GameObject." +
@@ -30,6 +33,13 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private bool isDefaultScale;
     private readonly string scaleTooltip = "Specify the number of copies to create from the selected GameObject." +
                                                  "The range is from 1 to 1000.";
+
+    private readonly string duplicateSpecialTooltip = "Close the editor window.";
+    private readonly string applyTooltip = "Apply change(s) without closing the editor window.";
+    private readonly string closeTooltip = "Close the editor window.";
+
+    private bool showPreview = false;
+    private List<GameObject> temporaryDuplicatedGameObjects;
 
     #region Menu Item + Validation
     /// <summary>
@@ -62,14 +72,39 @@ public class DuplicateSpecialToolEditor : EditorWindow
             fontStyle = FontStyle.Bold
         };
 
-        GUILayout.Label("Select a group or groups of objects and alter the selection(s) in various ways, " +
-                        "such as transform, rotate, or flip (mirror)!", EditorStyles.largeLabel);
+        GUIStyle closeButtonStyle = new GUIStyle(GUI.skin.button)
+        {
+            alignment = TextAnchor.MiddleCenter,
+            fixedHeight = 32f,
+        };
 
-        GUIContent numOfCopiesContent = new GUIContent("Number of copies:", numOfCopiesTooltip);
-        numOfCopies = EditorGUILayout.IntSlider(numOfCopiesContent, numOfCopies, 0, 1000);
+        #region Header
+
+        GUILayout.Label("Duplicate Special Tool is a special tool which provides users various options to", EditorStyles.boldLabel);
+
+        #endregion
 
         DrawLine(GetColorFromHexString("#34aeeb"), 1, 4f);
 
+        #region Selected GameObject
+        GUIContent selectedGameObjectContent = new GUIContent("Selected GameObject:", "The selected gameObject.");
+        selectedGameObject = Selection.activeGameObject;
+        GUI.backgroundColor = AddColor("#9bff54");
+        GUI.enabled = false;
+        GUILayout.Box(selectedGameObjectContent);
+        EditorGUILayout.ObjectField(selectedGameObjectContent, selectedGameObject, typeof(GameObject), true);
+        GUI.enabled = true;
+        GUI.backgroundColor = Color.white;
+        #endregion
+
+        #region Number of Copies
+        GUIContent numOfCopiesContent = new GUIContent("Number of copies:", numOfCopiesTooltip);
+        numOfCopies = EditorGUILayout.IntSlider(numOfCopiesContent, numOfCopies, 0, 1000);
+        #endregion
+
+        DrawLine(GetColorFromHexString("#34aeeb"), 1, 4f);
+
+        #region Transform
         GUILayout.BeginHorizontal();
         GUIContent positionContent = new GUIContent("Translate (Offset):", positionTooltip);
         positionProp = EditorGUILayout.Vector3Field(positionContent, positionProp);
@@ -114,69 +149,54 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUI.enabled = true;
         GUI.backgroundColor = Color.white;
         GUILayout.EndHorizontal();
+        #endregion
 
+        DrawLine(GetColorFromHexString("#34aeeb"), 1, 4f);
+        showPreview = GUILayout.Toggle(showPreview, "Show Preview");
+        if (showPreview)
+        {
 
-        //showTool = EditorGUILayout.Foldout(showTool, "Group Transform");
+        }
 
-        //if (showTool)
-        //{
-        //    showRotateTool = EditorGUILayout.Foldout(showRotateTool, "Rotate");
+        #region Button(s) Footer
+        GUILayout.FlexibleSpace();
+        DrawLine(GetColorFromHexString("#34aeeb"), 1, 4f);
+        GUILayout.BeginHorizontal();
+        // [Duplicate Special] Button
+        GUI.backgroundColor = AddColor("#00ffae");
+        if (GUILayout.Button("Duplicate Special ★", closeButtonStyle))
+        {
 
-        //    if (showRotateTool)
-        //    {
-        //        freeRotation = EditorGUILayout.Toggle("Free Rotation", freeRotation);
-        //        if (freeRotation)
-        //        {
-        //            groupRotationAngle = EditorGUILayout.Slider("Group Rotation", Mathf.Round(groupRotationAngle), 0f, 360f);
-        //            if (GUILayout.Button("Apply Rotation"))
-        //            {
-        //                RotateGroup(groupRotationAngle);
-        //            }
-        //        }
-        //        else
-        //        {
-        //            GUILayout.BeginHorizontal();
-        //            if (GUILayout.Button("5°")) { RotateGroup(5f); }
-        //            if (GUILayout.Button("15°")) { RotateGroup(15f); }
-        //            if (GUILayout.Button("30°")) { RotateGroup(30f); }
-        //            GUILayout.EndHorizontal();
+        }
+        GUI.backgroundColor = Color.white;
+        // [Apply] Button
+        GUI.backgroundColor = AddColor("#00aeff");
+        if (GUILayout.Button("Apply", closeButtonStyle))
+        {
 
-        //            GUILayout.BeginHorizontal();
-        //            if (GUILayout.Button("45°")) { RotateGroup(45f); }
-        //            if (GUILayout.Button("60°")) { RotateGroup(60f); }
-        //            if (GUILayout.Button("90°")) { RotateGroup(90f); }
-        //            GUILayout.EndHorizontal();
+        }
+        GUI.backgroundColor = Color.white;
+        // [Close] Button
+        GUI.backgroundColor = AddColor("#8030ff");
+        if (GUILayout.Button("Close", closeButtonStyle))
+        {
+            // Close editor window.
+            Close();
+        }
+        GUI.backgroundColor = Color.white;
+        GUILayout.EndHorizontal();
+        #endregion
 
-        //            GUILayout.BeginHorizontal();
-        //            if (GUILayout.Button("120°")) { RotateGroup(120f); }
-        //            if (GUILayout.Button("180°")) { RotateGroup(180f); }
-        //            if (GUILayout.Button("270°")) { RotateGroup(270f); }
-        //            GUILayout.EndHorizontal();
-        //        }
-        //        rotationDirection = (Direction)EditorGUILayout.EnumPopup("Direction", rotationDirection);
-        //    }
-
-        //    showFlipTool = EditorGUILayout.Foldout(showFlipTool, "Flip");
-        //    if (showFlipTool)
-        //    {
-        //        if (GUILayout.Button("Flip Horizontal", GUILayout.Height(16)))
-        //        {
-        //            FlipGroup(Flip.Horizontal);
-        //        }
-        //        if (GUILayout.Button("Flip Vertical", GUILayout.Height(16)))
-        //        {
-        //            FlipGroup(Flip.Vertical);
-        //        }
-        //    }
 
         //    EditorGUILayout.HelpBox($"Selected GameObject(s): {Selection.gameObjects.Length}", MessageType.Info);
-        //}
     }
 
+    #region Duplicate Special Tool Method(s)
     private void ResetTransformProperty(ref Vector3 v, Vector3 defaultValue)
     {
         v = defaultValue;
     }
+    #endregion
 
     #region Miscellaneous
     /// <summary>
@@ -188,6 +208,31 @@ public class DuplicateSpecialToolEditor : EditorWindow
     {
         Color color = Color.white;
         ColorUtility.TryParseHtmlString(hexColor, out color);
+        return color;
+    }
+
+    /// <summary>
+    /// Add color to existing color.
+    /// </summary>
+    /// <param name="color">Added color.</param>
+    /// <returns>New color.</returns>
+    protected Color AddColor(Color color)
+    {
+        color += color;
+        return color;
+    }
+
+    /// <summary>
+    /// Add color to existing color.
+    /// </summary>
+    /// <param name="hexColor">Hex color string.</param>
+    /// <returns>New color.</returns>
+    protected Color AddColor(string hexColor)
+    {
+        Color color = Color.white;
+        ColorUtility.TryParseHtmlString(hexColor, out color);
+        color += color;
+
         return color;
     }
 
