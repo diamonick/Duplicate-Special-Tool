@@ -2,19 +2,43 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEditor;
 
 public class DuplicateSpecialToolEditor : EditorWindow
 {
-    private GUIStyle optionLabelStyle;
+    public enum TransformMode
+    {
+        TwoDimensional = 0,
+        ThreeDimensional = 1
+    }
 
+    private readonly string[] transformModes = new string[] { "2D: (X,Y)", "3D: (X,Y,Z)" };
+
+    private GUIStyle optionLabelStyle;
+    private readonly string boxHeaderColor = "#4b535e";
+
+    // Icons
+    private readonly string numberOfCopiesIconPath = "Assets/Editor/Icons/NumberOfCopiesIcon.png";
+    private readonly string namingConventionsIconPath = "Assets/Editor/Icons/NamingConventionIcon.png";
+    private readonly string groupUnderIconPath = "Assets/Editor/Icons/GroupUnderIcon.png";
+    private readonly string transformIconPath = "Assets/Editor/Icons/TransformIcon.png";
+
+    #region Number of Copies
     // Property: Selected GameObject.
     private GameObject selectedGameObject;
 
     // Property: Number of copies.
     private int numOfCopies;
-    private readonly string numOfCopiesTooltip = "Specify the number of copies to create from the selected GameObject." +
+    private readonly string numOfCopiesTooltip = "Specify the number of copies to create from the selected GameObject.\n\n" +
                                                  "The range is from 1 to 1000.";
+
+    // Section Fields
+    private bool showNumberOfCopiesSection = false;
+    #endregion
+
+    #region Transform
+    private int transformMode;
 
     // Property: Translate (Offset).
     private Vector3 positionProp = Vector3.zero;
@@ -34,12 +58,31 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private readonly string scaleTooltip = "Specify the number of copies to create from the selected GameObject." +
                                                  "The range is from 1 to 1000.";
 
+    // Section Fields
+    private bool showTransformSection = false;
+    #endregion
+
+    #region Button(s) Footer
     private readonly string duplicateSpecialTooltip = "Close the editor window.";
     private readonly string applyTooltip = "Apply change(s) without closing the editor window.";
     private readonly string closeTooltip = "Close the editor window.";
+    #endregion
 
+    #region Other
     private bool showPreview = false;
+    private readonly string showPreviewTooltip = "Shows a preview of how the duplicated object(s) will be arranged " +
+                                                 "before duplicating.";
+
+    private bool makePrefabClones = false;
+    private readonly string makePrefabClonesTooltip = "When enabled, it will instantiate clone(s) of the prefab.\n\n" +
+                                                      "If you want to preserve the prefab connection to the selected prefab, " +
+                                                      "uncheck this checkbox.";
+    private bool isPrefab = false;
     private List<GameObject> temporaryDuplicatedGameObjects;
+
+    // Section Fields
+    private bool showOtherSection = false;
+    #endregion
 
     #region Menu Item + Validation
     /// <summary>
@@ -84,27 +127,188 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
         #endregion
 
-        DrawLine(GetColorFromHexString("#34aeeb"), 1, 4f);
-
-        #region Selected GameObject
-        GUIContent selectedGameObjectContent = new GUIContent("Selected GameObject:", "The selected gameObject.");
-        selectedGameObject = Selection.activeGameObject;
-        GUI.backgroundColor = AddColor("#9bff54");
-        GUI.enabled = false;
-        GUILayout.Box(selectedGameObjectContent);
-        EditorGUILayout.ObjectField(selectedGameObjectContent, selectedGameObject, typeof(GameObject), true);
-        GUI.enabled = true;
-        GUI.backgroundColor = Color.white;
-        #endregion
+        DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
 
         #region Number of Copies
-        GUIContent numOfCopiesContent = new GUIContent("Number of copies:", numOfCopiesTooltip);
-        numOfCopies = EditorGUILayout.IntSlider(numOfCopiesContent, numOfCopies, 0, 1000);
+        selectedGameObject = Selection.activeGameObject;
+        isPrefab = PrefabUtility.GetPrefabInstanceHandle(selectedGameObject) != null;
+        DrawSection("No. of Copies", ref showNumberOfCopiesSection, DisplayNumberOfCopiesSection, numberOfCopiesIconPath, AddColor("#00E6BC"));
         #endregion
 
-        DrawLine(GetColorFromHexString("#34aeeb"), 1, 4f);
+        DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
+
+        #region Naming Conventions
+        DrawSection("Naming Conventions", ref showOtherSection, null, namingConventionsIconPath, AddColor("#00BEFF"));
+        #endregion
+
+        DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
+
+        #region Group Under
+        DrawSection("Group Under", ref showOtherSection, null, groupUnderIconPath, AddColor("#B282FF"));
+        #endregion
+
+        DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
 
         #region Transform
+        DrawSection("Transform", ref showTransformSection, DisplayTransformSection, transformIconPath, AddColor("#FD6D40"));
+        #endregion
+
+        DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
+
+        #region Other
+        DrawSection("Other", ref showOtherSection, null, "", AddColor(boxHeaderColor));
+        GUIContent showPreviewContent = new GUIContent("Show Preview", showPreviewTooltip);
+        showPreview = GUILayout.Toggle(showPreview, showPreviewContent);
+        if (showPreview)
+        {
+
+        }
+        GUI.enabled = isPrefab;
+        GUIContent makePrefabClonesContent = new GUIContent("Make Prefab Clone(s)", makePrefabClonesTooltip);
+        makePrefabClones = GUILayout.Toggle(makePrefabClones, makePrefabClonesContent);
+        if (makePrefabClones)
+        {
+
+        }
+        GUI.enabled = true;
+        #endregion
+
+        #region Button(s) Footer
+        GUILayout.FlexibleSpace();
+
+        // Display warning.
+        if (selectedGameObject == null)
+        {
+            GUI.backgroundColor = AddColor("#ffb300");
+            GUI.contentColor = AddColor("#ffb300");
+            EditorGUILayout.HelpBox("No gameObject is currently selected. Please select a gameObject " +
+                                    "to continue the duplication process.", MessageType.Warning);
+            GUI.contentColor = Color.white;
+            GUI.backgroundColor = Color.white;
+        }
+
+        DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
+
+        //This is the important bit, we set the width to the calculated width of the content in the GUIStyle of the control
+        //EditorGUILayout.LabelField(label, GUILayout.Width(GUI.skin.label.CalcSize(label).x));
+
+        GUILayout.BeginHorizontal();
+        GUI.enabled = selectedGameObject != null;
+        // [Duplicate Special] Button
+        GUI.backgroundColor = GUI.enabled ? AddColor("#00ffae") : Color.gray;
+        GUIContent duplicateSpecialButtonContent = new GUIContent("Duplicate Special", duplicateSpecialTooltip);
+        if (GUILayout.Button(duplicateSpecialButtonContent, closeButtonStyle))
+        {
+            DuplicateObjects();
+        }
+        GUI.backgroundColor = Color.white;
+        // [Apply] Button
+        GUI.backgroundColor = GUI.enabled ? AddColor("#00aeff") : Color.gray;
+        GUIContent applyButtonContent = new GUIContent("Apply", applyTooltip);
+        if (GUILayout.Button(applyButtonContent, closeButtonStyle))
+        {
+            DuplicateObjects();
+        }
+        GUI.backgroundColor = Color.white;
+        GUI.enabled = true;
+        // [Close] Button
+        GUI.backgroundColor = GUI.enabled ? AddColor("#8030ff") : Color.gray;
+        GUIContent closeButtonContent = new GUIContent("Close", closeTooltip);
+        if (GUILayout.Button(closeButtonContent, closeButtonStyle))
+        {
+            // Close editor window.
+            Close();
+        }
+        GUI.backgroundColor = Color.white;
+        GUILayout.EndHorizontal();
+        #endregion
+
+
+        //    EditorGUILayout.HelpBox($"Selected GameObject(s): {Selection.gameObjects.Length}", MessageType.Info);
+    }
+
+    #region Duplicate Special Tool Method(s)
+    private void ResetTransformProperty(ref Vector3 v, Vector3 defaultValue)
+    {
+        v = defaultValue;
+    }
+
+    private void DuplicateObjects()
+    {
+        if (selectedGameObject == null)
+            return;
+
+        GameObject prefab = null;
+        if (isPrefab)
+        {
+            Debug.Log("Prefab!");
+
+            //// Get the Diamond component from the selected object.
+            //Diamond diamond = obj.GetComponent<Diamond>();
+            //if (diamond == null)
+            //    continue;
+            //if (diamond.DiamondColor == Diamond.DiamondColorType.None)
+            //    continue;
+
+            //// Add selected Diamond to list.
+            //selectedDiamonds.AddItem(obj);
+
+            //// Instantiate new Diamonds based on the desired color.
+            //Object prefabInstance = GetDiamondPrefab(diamond);
+            //prefabInstance = PrefabUtility.InstantiatePrefab(prefabInstance as GameObject);
+            //GameObject newDiamond = (GameObject)prefabInstance;
+
+            //// Set position of new Diamond to the old position.
+            //Vector3 positionRef = diamond.transform.position;
+            //newDiamond.transform.position = positionRef;
+
+            //// Format new Diamond's name.
+            //newDiamond.name = $"{newDiamond.name} {selectedDiamonds.Count}";
+
+            //// Place new diamond under the diamond group parent in the Hierarchy.
+            //if (newDiamond != null)
+            //{
+            //    newDiamond.transform.SetParent(diamondGroupParent);
+            //}
+        }
+
+        for (int i = 0; i < numOfCopies; i++)
+        {    
+        }
+
+        string windowTitle = "Hello World!";
+        string windowMessage = "Hello World!";
+        if (EditorUtility.DisplayDialog(windowTitle, windowMessage, "OK"))
+        {
+
+        }
+    }
+    #endregion
+
+    /// <summary>
+    /// Display the "Number of Copies" section.
+    /// </summary>
+    protected void DisplayNumberOfCopiesSection()
+    {
+        GUIContent selectedGameObjectContent = new GUIContent("Selected GameObject:", "The selected gameObject.");
+        GUI.enabled = false;
+        EditorGUILayout.ObjectField(selectedGameObjectContent, selectedGameObject, typeof(GameObject), true);
+        GUI.enabled = true;
+        GUI.contentColor = Color.white;
+        GUI.backgroundColor = Color.white;
+
+        GUIContent numOfCopiesContent = new GUIContent("Number of copies:", numOfCopiesTooltip);
+        numOfCopies = EditorGUILayout.IntSlider(numOfCopiesContent, numOfCopies, 0, 1000);
+    }
+
+    /// <summary>
+    /// Display the "Transform" section.
+    /// </summary>
+    protected void DisplayTransformSection()
+    {
+        transformMode = EditorGUILayout.Popup("Mode (2D/3D):", transformMode, transformModes);
+        GUILayout.Space(8);
+
         GUILayout.BeginHorizontal();
         GUIContent positionContent = new GUIContent("Translate (Offset):", positionTooltip);
         positionProp = EditorGUILayout.Vector3Field(positionContent, positionProp);
@@ -149,56 +353,36 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUI.enabled = true;
         GUI.backgroundColor = Color.white;
         GUILayout.EndHorizontal();
-        #endregion
-
-        DrawLine(GetColorFromHexString("#34aeeb"), 1, 4f);
-        showPreview = GUILayout.Toggle(showPreview, "Show Preview");
-        if (showPreview)
-        {
-
-        }
-
-        #region Button(s) Footer
-        GUILayout.FlexibleSpace();
-        DrawLine(GetColorFromHexString("#34aeeb"), 1, 4f);
-        GUILayout.BeginHorizontal();
-        // [Duplicate Special] Button
-        GUI.backgroundColor = AddColor("#00ffae");
-        if (GUILayout.Button("Duplicate Special ★", closeButtonStyle))
-        {
-
-        }
-        GUI.backgroundColor = Color.white;
-        // [Apply] Button
-        GUI.backgroundColor = AddColor("#00aeff");
-        if (GUILayout.Button("Apply", closeButtonStyle))
-        {
-
-        }
-        GUI.backgroundColor = Color.white;
-        // [Close] Button
-        GUI.backgroundColor = AddColor("#8030ff");
-        if (GUILayout.Button("Close", closeButtonStyle))
-        {
-            // Close editor window.
-            Close();
-        }
-        GUI.backgroundColor = Color.white;
-        GUILayout.EndHorizontal();
-        #endregion
-
-
-        //    EditorGUILayout.HelpBox($"Selected GameObject(s): {Selection.gameObjects.Length}", MessageType.Info);
     }
-
-    #region Duplicate Special Tool Method(s)
-    private void ResetTransformProperty(ref Vector3 v, Vector3 defaultValue)
-    {
-        v = defaultValue;
-    }
-    #endregion
 
     #region Miscellaneous
+    protected void DrawSection(string header, ref bool foldout, UnityAction ue, string iconPath, Color boxColor)
+    {
+        var icon = AssetDatabase.LoadAssetAtPath(iconPath, typeof(Texture2D)) as Texture2D;
+        EditorGUIUtility.SetIconSize(new Vector2(28f, 28f));
+
+        GUIContent content = new GUIContent(header, icon);
+        GUIStyle headerStyle = new GUIStyle(GUI.skin.box)
+        {
+            fontStyle = FontStyle.Bold,
+            fontSize = 16,
+            alignment = TextAnchor.MiddleLeft,
+            fixedHeight = 28f,
+            stretchWidth = true,
+            wordWrap = false,
+            clipping = TextClipping.Clip
+        };
+
+        GUI.backgroundColor = boxColor;
+        foldout = EditorGUILayout.BeginFoldoutHeaderGroup(foldout, content, headerStyle, null);
+        GUI.backgroundColor = Color.white;
+        if (foldout && ue != null)
+        {
+            ue.Invoke();
+        }
+        EditorGUILayout.EndFoldoutHeaderGroup();
+    }
+
     /// <summary>
     /// Get color from hex string.
     /// </summary>
