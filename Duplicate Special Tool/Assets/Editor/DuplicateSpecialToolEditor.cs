@@ -6,6 +6,14 @@ using UnityEditor;
 
 public class DuplicateSpecialToolEditor : EditorWindow
 {
+    // Property: Number of copies.
+    private int numOfCopies;
+    private readonly string numOfCopiesTooltip = "Specify the number of copies to create from the selected GameObject." +
+                                                 "The range is from 1 to 1000.";
+    private Vector3 transformProp;
+    private Vector3 rotationProp;
+    private Vector3 scaleProp;
+
     #region Menu Item + Validation
     /// <summary>
     /// Display the Duplicate Special option in the right-click menu when a single (1) GameObject is selected.
@@ -30,6 +38,12 @@ public class DuplicateSpecialToolEditor : EditorWindow
     {
         GUILayout.Label("Select a group or groups of objects and alter the selection(s) in various ways, " +
                         "such as transform, rotate, or flip (mirror)!", EditorStyles.largeLabel);
+
+        GUIContent numOfCopiesContent = new GUIContent("Number of copies:", numOfCopiesTooltip);
+        numOfCopies = EditorGUILayout.IntSlider(numOfCopiesContent, numOfCopies, 0, 1000);
+
+        DrawLine(GetColorFromHexString("#34aeeb"), 1, 4f);
+
 
         //showTool = EditorGUILayout.Foldout(showTool, "Group Transform");
 
@@ -87,5 +101,40 @@ public class DuplicateSpecialToolEditor : EditorWindow
         //    EditorGUILayout.HelpBox($"Selected GameObject(s): {Selection.gameObjects.Length}", MessageType.Info);
         //}
     }
+
+    #region Miscellaneous
+    /// <summary>
+    /// Get color from hex string.
+    /// </summary>
+    /// <param name="hexColor">Hex color string.</param>
+    /// <returns>New color.</returns>
+    protected Color GetColorFromHexString(string hexColor)
+    {
+        Color color = Color.white;
+        ColorUtility.TryParseHtmlString(hexColor, out color);
+        return color;
+    }
+
+    /// Draws a line in the inspector.
+    /// </summary>
+    /// <param name="lineColor">Hex color string.</param>
+    /// <param name="height">Line height.</param>
+    protected static void DrawLine(Color lineColor, int height, float spacing)
+    {
+        GUIStyle horizontalLine = new GUIStyle();
+        horizontalLine.normal.background = EditorGUIUtility.whiteTexture;
+        horizontalLine.margin = new RectOffset(4, 4, height, height);
+        horizontalLine.fixedHeight = height;
+
+        GUILayout.Space(spacing);
+
+        var c = GUI.color;
+        GUI.color = lineColor;
+        GUILayout.Box(GUIContent.none, horizontalLine);
+        GUI.color = c;
+
+        GUILayout.Space(spacing);
+    }
+    #endregion
 
 }
