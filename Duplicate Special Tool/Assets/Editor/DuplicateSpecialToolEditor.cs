@@ -13,6 +13,22 @@ public class DuplicateSpecialToolEditor : EditorWindow
         ThreeDimensional = 1
     }
 
+    public enum NamingMethod
+    {
+        Numbers = 0,
+        Letters = 1,
+        Custom = 2
+    }
+
+    public enum Case
+    {
+        None = 0,
+        LowerCase = 1,
+        UpperCase = 2,
+        CapitalizedCase = 3,
+        AlternatingCaps = 4,
+    }
+
     private readonly string[] transformModes = new string[] { "2D", "3D", "Line", "Grid", "Circle", "Random" };
 
     private GUIStyle optionLabelStyle;
@@ -37,13 +53,31 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
     // Section Fields
     private bool showNumberOfCopiesSection = false;
-    private int namingMethodType = 0;
+    private NamingMethod namingMethodType = NamingMethod.Numbers;
     #endregion
 
     #region Naming Conventions
+    // Numbers Settings
     private int numOfDigits = 1;
     private int countFromNumbers = 0;
     private int incrementByNumbers = 0;
+    private readonly int countFromAmount = 100;
+    private readonly int incrementalAmount = 10;
+
+    // Letters Settings
+    private Case lettercase = Case.UpperCase;
+
+    // Custom Settings
+    private bool replaceFullName;
+    private string replacementName = "New GameObject";
+    private string prefixName;
+    private bool numeratePrefix;
+    private int countFromPrefix = 0;
+    private int incrementByPrefix = 0;
+    private string suffixName;
+    private bool numerateSuffix;
+    private int countFromSuffix = 0;
+    private int incrementBySuffix = 0;
 
     // Section Fields
     private bool showNamingConventionsSection = false;
@@ -151,10 +185,12 @@ public class DuplicateSpecialToolEditor : EditorWindow
             fontStyle = FontStyle.Bold
         };
 
-        GUIStyle closeButtonStyle = new GUIStyle(GUI.skin.button)
+        GUIStyle footerButtonStyle = new GUIStyle(GUI.skin.button)
         {
+            fontSize = 13,
+            fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
-            fixedHeight = 32f,
+            fixedHeight = 36f,
         };
 
         scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, false, true);
@@ -234,16 +270,16 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUI.enabled = selectedGameObject != null;
         // [Duplicate Special] Button
         GUI.backgroundColor = GUI.enabled ? AddColor("#00ffae") : Color.gray;
-        GUIContent duplicateSpecialButtonContent = new GUIContent("Duplicate Special", duplicateSpecialTooltip);
-        if (GUILayout.Button(duplicateSpecialButtonContent, closeButtonStyle))
+        GUIContent duplicateSpecialButtonContent = new GUIContent("★ Duplicate Special", duplicateSpecialTooltip);
+        if (GUILayout.Button(duplicateSpecialButtonContent, footerButtonStyle))
         {
             DuplicateObjects();
         }
         GUI.backgroundColor = Color.white;
         // [Apply] Button
         GUI.backgroundColor = GUI.enabled ? AddColor("#00aeff") : Color.gray;
-        GUIContent applyButtonContent = new GUIContent("Apply", applyTooltip);
-        if (GUILayout.Button(applyButtonContent, closeButtonStyle))
+        GUIContent applyButtonContent = new GUIContent("✓ Apply", applyTooltip);
+        if (GUILayout.Button(applyButtonContent, footerButtonStyle))
         {
             DuplicateObjects();
         }
@@ -251,8 +287,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUI.enabled = true;
         // [Close] Button
         GUI.backgroundColor = GUI.enabled ? AddColor("#8030ff") : Color.gray;
-        GUIContent closeButtonContent = new GUIContent("Close", closeTooltip);
-        if (GUILayout.Button(closeButtonContent, closeButtonStyle))
+        GUIContent closeButtonContent = new GUIContent("╳  Close", closeTooltip);
+        if (GUILayout.Button(closeButtonContent, footerButtonStyle))
         {
             // Close editor window.
             Close();
@@ -358,76 +394,216 @@ public class DuplicateSpecialToolEditor : EditorWindow
     protected void DisplayNamingConventionsSection()
     {
         var namingMethods = new string[] { "Numbers", "Letters", "Custom" };
+        var letterCases = new string[] { "Lowercase", "Uppercase"};
         GUIContent namingMethodContent = new GUIContent("Naming Method:", "");
-        namingMethodType = EditorGUILayout.Popup(namingMethodContent, namingMethodType, namingMethods);
+        GUI.backgroundColor = AddColor("#00BEFF");
+        namingMethodType = (NamingMethod)EditorGUILayout.Popup(namingMethodContent, (int)namingMethodType, namingMethods);
         GUI.contentColor = Color.white;
         GUI.backgroundColor = Color.white;
         GUILayout.Space(8);
 
-        if (namingMethodType == 0)
+        switch (namingMethodType)
         {
-            EditorGUILayout.BeginHorizontal();
-            GUIContent numOfDigitsContent = new GUIContent("Number of digits:", "");
-            DrawBulletPoint("#00BEFF");
-            numOfDigits = EditorGUILayout.IntSlider(numOfDigitsContent, numOfDigits, 1, 10);
-            if (GUILayout.Button("-"))
-            {
-                numOfDigits = Mathf.Clamp(numOfDigits - 1, 1, 10);
-            }
-            if (GUILayout.Button("+"))
-            {
-                numOfDigits = Mathf.Clamp(numOfDigits + 1, 1, 10);
-            }
-            EditorGUILayout.EndHorizontal();
+            case NamingMethod.Numbers:
+                #region Number of Digits
+                EditorGUILayout.BeginHorizontal();
+                GUIContent numOfDigitsContent = new GUIContent("Number of digits:", "");
+                DrawBulletPoint("#00BEFF");
+                numOfDigits = EditorGUILayout.IntSlider(numOfDigitsContent, numOfDigits, 1, 10);
+                if (GUILayout.Button("-"))
+                {
+                    numOfDigits = Mathf.Clamp(numOfDigits - 1, 1, 10);
+                }
+                if (GUILayout.Button("+"))
+                {
+                    numOfDigits = Mathf.Clamp(numOfDigits + 1, 1, 10);
+                }
+                EditorGUILayout.EndHorizontal();
+                #endregion
+                #region Count From
+                EditorGUILayout.BeginHorizontal();
+                DrawBulletPoint("#00BEFF");
+                GUIContent countFromContent = new GUIContent("Count from:", "");
+                countFromNumbers = EditorGUILayout.IntSlider(countFromContent, countFromNumbers, 0, countFromAmount);
+                if (GUILayout.Button("-"))
+                {
+                    countFromNumbers = Mathf.Clamp(countFromNumbers - 1, 0, countFromAmount);
+                }
+                if (GUILayout.Button("+"))
+                {
+                    countFromNumbers = Mathf.Clamp(countFromNumbers + 1, 0, countFromAmount);
+                }
+                EditorGUILayout.EndHorizontal();
+                #endregion
+                #region Increment By
+                EditorGUILayout.BeginHorizontal();
+                DrawBulletPoint("#00BEFF");
+                GUIContent incrementByContent = new GUIContent("Increment by:", "");
+                incrementByNumbers = EditorGUILayout.IntSlider(incrementByContent, incrementByNumbers, 1, incrementalAmount);
+                if (GUILayout.Button("-"))
+                {
+                    incrementByNumbers = Mathf.Clamp(incrementByNumbers - 1, 1, incrementalAmount);
+                }
+                if (GUILayout.Button("+"))
+                {
+                    incrementByNumbers = Mathf.Clamp(incrementByNumbers + 1, 1, incrementalAmount);
+                }
+                EditorGUILayout.EndHorizontal();
+                #endregion
+                break;
+            case NamingMethod.Letters:
+                #region Case
+                EditorGUILayout.BeginHorizontal();
+                GUIContent caseContent1 = new GUIContent("Case:", "");
+                DrawBulletPoint("#00BEFF");
+                lettercase = (Case)EditorGUILayout.EnumPopup(caseContent1, lettercase);
+                EditorGUILayout.EndHorizontal();
+                #endregion
+                break;
+            case NamingMethod.Custom:
+                #region Replace Full Name?
+                GUIContent replaceFullNameContent = new GUIContent("Replace Full Name?", "");
+                replaceFullName = GUILayout.Toggle(replaceFullName, replaceFullNameContent);
+                if (replaceFullName)
+                {
+                    #region Replace With
+                    EditorGUILayout.BeginHorizontal();
+                    DrawBulletPoint("#00BEFF", 1);
+                    GUIContent replacementNameContent = new GUIContent("Replace with:", "");
+                    replacementName = EditorGUILayout.TextField(replacementNameContent, replacementName);
+                    EditorGUILayout.EndHorizontal();
+                    #endregion
+                    #region Case
+                    EditorGUILayout.BeginHorizontal();
+                    GUIContent caseContent2 = new GUIContent("Case:", "");
+                    DrawBulletPoint("#00BEFF", 1);
+                    lettercase = (Case)EditorGUILayout.EnumPopup(caseContent2, lettercase);
+                    EditorGUILayout.EndHorizontal();
+                    #endregion
+                }
+                #endregion
 
-            EditorGUILayout.BeginHorizontal();
-            DrawBulletPoint("#00BEFF");
-            GUIContent countFromContent = new GUIContent("Count from:", "");
-            countFromNumbers = EditorGUILayout.IntSlider(countFromContent, countFromNumbers, 0, 100);
-            if (GUILayout.Button("-"))
-            {
-                countFromNumbers = Mathf.Clamp(countFromNumbers - 1, 0, 100);
-            }
-            if (GUILayout.Button("+"))
-            {
-                countFromNumbers = Mathf.Clamp(countFromNumbers + 1, 0, 100);
-            }
-            EditorGUILayout.EndHorizontal();
+                DrawLine(GetColorFromHexString("#555555"), 1, 12f);
 
-            EditorGUILayout.BeginHorizontal();
-            DrawBulletPoint("#00BEFF");
-            GUIContent incrementByContent = new GUIContent("Increment by:", "");
-            incrementByNumbers = EditorGUILayout.IntSlider(incrementByContent, incrementByNumbers, 1, 100);
-            if (GUILayout.Button("-"))
-            {
-                incrementByNumbers = Mathf.Clamp(incrementByNumbers - 1, 1, 100);
-            }
-            if (GUILayout.Button("+"))
-            {
-                incrementByNumbers = Mathf.Clamp(incrementByNumbers + 1, 1, 100);
-            }
-            EditorGUILayout.EndHorizontal();
+                #region Prefix
+                EditorGUILayout.BeginHorizontal();
+                DrawBulletPoint("#00BEFF");
+                GUIContent prefixContent = new GUIContent("Prefix:", "");
+                prefixName = EditorGUILayout.TextField(prefixContent, prefixName);
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.BeginHorizontal();
+                //DrawBulletPoint("#00BEFF");
+                //GUILayout.Label("Case:");
+                //GUILayout.Toggle(pressed, "ab", "Button");
+                //GUILayout.Toggle(pressed, "ab", "Button");
+                //GUILayout.Toggle(pressed, "AB", "Button");
+                EditorGUILayout.EndHorizontal();
+                #endregion
+                #region Numerate Prefix
+                GUIContent numeratePrefixContent = new GUIContent("Numerate Prefix?", "");
+                numeratePrefix = GUILayout.Toggle(numeratePrefix, numeratePrefixContent);
+                if (numeratePrefix)
+                {
+                    #region Count From
+                    EditorGUILayout.BeginHorizontal();
+                    DrawBulletPoint("#00BEFF", 1);
+                    GUIContent countFromPrefixContent = new GUIContent("Count from:", "");
+                    countFromPrefix = EditorGUILayout.IntSlider(countFromPrefixContent, countFromPrefix, 0, countFromAmount);
+                    if (GUILayout.Button("-"))
+                    {
+                        countFromPrefix = Mathf.Clamp(countFromPrefix - 1, 0, countFromAmount);
+                    }
+                    if (GUILayout.Button("+"))
+                    {
+                        countFromPrefix = Mathf.Clamp(countFromPrefix + 1, 0, countFromAmount);
+                    }
+                    EditorGUILayout.EndHorizontal();
+                    #endregion
+                    #region Increment By
+                    EditorGUILayout.BeginHorizontal();
+                    DrawBulletPoint("#00BEFF", 1);
+                    GUIContent incrementByPrefixContent = new GUIContent("Increment by:", "");
+                    incrementByPrefix = EditorGUILayout.IntSlider(incrementByPrefixContent, incrementByPrefix, 1, incrementalAmount);
+                    if (GUILayout.Button("-"))
+                    {
+                        incrementByPrefix = Mathf.Clamp(incrementByPrefix - 1, 1, incrementalAmount);
+                    }
+                    if (GUILayout.Button("+"))
+                    {
+                        incrementByPrefix = Mathf.Clamp(incrementByPrefix + 1, 1, incrementalAmount);
+                    }
+                    EditorGUILayout.EndHorizontal();
+                    #endregion
+                }
+                #endregion
+
+                DrawLine(GetColorFromHexString("#555555"), 1, 12f);
+
+                #region Suffix
+                EditorGUILayout.BeginHorizontal();
+                DrawBulletPoint("#00BEFF");
+                GUIContent suffixContent = new GUIContent("Suffix:", "");
+                suffixName = EditorGUILayout.TextField(suffixContent, suffixName);
+                EditorGUILayout.EndHorizontal();
+                #endregion
+                #region Numerate Suffix
+                GUIContent numerateSuffixContent = new GUIContent("Numerate Suffix?", "");
+                numerateSuffix = GUILayout.Toggle(numerateSuffix, numerateSuffixContent);
+                if (numerateSuffix)
+                {
+                    #region Count From
+                    EditorGUILayout.BeginHorizontal();
+                    DrawBulletPoint("#00BEFF", 1);
+                    GUIContent countFromSuffixContent = new GUIContent("Count from:", "");
+                    countFromSuffix = EditorGUILayout.IntSlider(countFromSuffixContent, countFromSuffix, 0, countFromAmount);
+                    if (GUILayout.Button("-"))
+                    {
+                        countFromSuffix = Mathf.Clamp(countFromSuffix - 1, 0, countFromAmount);
+                    }
+                    if (GUILayout.Button("+"))
+                    {
+                        countFromSuffix = Mathf.Clamp(countFromSuffix + 1, 0, countFromAmount);
+                    }
+                    EditorGUILayout.EndHorizontal();
+                    #endregion
+                    #region Increment By
+                    EditorGUILayout.BeginHorizontal();
+                    DrawBulletPoint("#00BEFF", 1);
+                    GUIContent incrementBySuffixContent = new GUIContent("Increment by:", "");
+                    incrementBySuffix = EditorGUILayout.IntSlider(incrementBySuffixContent, incrementBySuffix, 1, incrementalAmount);
+                    if (GUILayout.Button("-"))
+                    {
+                        incrementBySuffix = Mathf.Clamp(incrementBySuffix - 1, 1, incrementalAmount);
+                    }
+                    if (GUILayout.Button("+"))
+                    {
+                        incrementBySuffix = Mathf.Clamp(incrementBySuffix + 1, 1, incrementalAmount);
+                    }
+                    EditorGUILayout.EndHorizontal();
+                    #endregion
+                }
+                #endregion
+                break;
         }
-        else
-        {
 
-        }
+        DrawLine(GetColorFromHexString("#555555"), 1, 12f);
 
-        GUILayout.Space(8);
-
+        #region Name Template
         GUIStyle headerStyle = new GUIStyle(GUI.skin.box)
         {
             fontStyle = FontStyle.Bold,
-            fontSize = 10,
+            fontSize = 12,
             alignment = TextAnchor.MiddleLeft,
-            fixedHeight = 24f,
+            fixedHeight = 28f,
             stretchWidth = true,
             wordWrap = false,
             clipping = TextClipping.Clip
         };
 
         string name = $"Temp";
-        GUILayout.Box($"Name Template: {name}", headerStyle);
+        EditorGUILayout.HelpBox($"Name Template: {name}", MessageType.Info);
+        GUI.backgroundColor = Color.white;
+        #endregion
     }
 
     /// <summary>
@@ -442,7 +618,9 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUI.backgroundColor = Color.white;
         GUI.contentColor = Color.white;
         GUIContent groupUnderContent = new GUIContent("Group Duplicate(s) Under:", "Select which grouping method to group the duplicate(s) under.");
+        GUI.backgroundColor = AddColor("#B282FF");
         groupUnderType = EditorGUILayout.Popup(groupUnderContent, groupUnderType, text);
+        GUI.backgroundColor = Color.white;
         GUILayout.Space(8);
 
         if (groupUnderType == 1)
@@ -492,7 +670,9 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// </summary>
     protected void DisplayTransformSection()
     {
+        GUI.backgroundColor = AddColor("#FD6D40");
         transformMode = EditorGUILayout.Popup("Mode:", transformMode, transformModes);
+        GUI.backgroundColor = Color.white;
         GUILayout.Space(8);
 
         GUILayout.BeginHorizontal();
@@ -502,7 +682,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         positionProp = EditorGUILayout.Vector3Field(positionContent, positionProp);
         isDefaultPosition = positionProp == Vector3.zero;
 
-        GUI.backgroundColor = isDefaultPosition ? Color.white : Color.green;
+        GUI.backgroundColor = isDefaultPosition ? Color.white : AddColor("#70e04a");
         GUI.enabled = !isDefaultPosition;
         if (GUILayout.Button(resetPositionContent))
         {
@@ -519,7 +699,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         rotationProp = EditorGUILayout.Vector3Field(rotationContent, rotationProp);
         isDefaultRotation = rotationProp == Vector3.zero;
 
-        GUI.backgroundColor = isDefaultRotation ? Color.white : Color.green;
+        GUI.backgroundColor = isDefaultRotation ? Color.white : AddColor("#70e04a");
         GUI.enabled = !isDefaultRotation;
         if (GUILayout.Button(resetRotationContent))
         {
@@ -536,7 +716,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         scaleProp = EditorGUILayout.Vector3Field(scaleContent, scaleProp);
         isDefaultScale = scaleProp == Vector3.one;
 
-        GUI.backgroundColor = isDefaultScale ? Color.white : Color.green;
+        GUI.backgroundColor = isDefaultScale ? Color.white : AddColor("#70e04a");
         GUI.enabled = !isDefaultScale;
         if (GUILayout.Button(resetScaleContent))
         {
@@ -605,14 +785,15 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// Draw bullet point: "•"
     /// </summary>
     /// <param name="bulletPointColor">Bullet point color string (Hexadecimal).</param>
-    protected static void DrawBulletPoint(string bulletPointColor)
+    protected static void DrawBulletPoint(string bulletPointColor, int indents = 0)
     {
         // GUI Style: Bullet Point
         GUIStyle bulletPointStyle = new GUIStyle(GUI.skin.label)
         {
             fontSize = 12,
             stretchWidth = true,
-            fixedWidth = 12
+            fixedWidth = 12 + (32 * indents),
+            contentOffset = new Vector2(32 * indents, 0f)
         };
 
         // Draw bullet point w/ the specified color.
