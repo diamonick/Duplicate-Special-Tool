@@ -13,10 +13,12 @@ public class DuplicateSpecialToolEditor : EditorWindow
         ThreeDimensional = 1
     }
 
-    private readonly string[] transformModes = new string[] { "2D: (X,Y)", "3D: (X,Y,Z)" };
+    private readonly string[] transformModes = new string[] { "2D", "3D", "Line", "Grid", "Circle", "Random" };
 
     private GUIStyle optionLabelStyle;
     private readonly string boxHeaderColor = "#4b535e";
+
+    private Vector2 scrollPosition;
 
     // Icons
     private readonly string numberOfCopiesIconPath = "Assets/Editor/Icons/NumberOfCopiesIcon.png";
@@ -35,6 +37,24 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
     // Section Fields
     private bool showNumberOfCopiesSection = false;
+    #endregion
+
+    #region Group Under
+    private Object groupParent = null;
+    private Object groupRelative = null;
+    private string newGroupName = "New Group";
+    private readonly string[] groupUnderTypeTooltips = new string[]
+    {
+        "Groups the duplicate(s) next to the selected GameObject.",
+        "Groups the duplicate(s) under the selected GameObject.",
+        "Groups the duplicate(s) under the specified parent.",
+        "Groups the duplicate(s) in the world.",
+        "Creates a new group GameObject to group the duplicate(s) under."
+    };
+
+    // Section Fields
+    private bool showGroupUnderSection = false;
+    private int groupUnderType = 0;
     #endregion
 
     #region Transform
@@ -121,10 +141,11 @@ public class DuplicateSpecialToolEditor : EditorWindow
             fixedHeight = 32f,
         };
 
+        scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition, false, true);
         #region Header
 
         GUILayout.Label("Duplicate Special Tool is a special tool which provides users various options to", EditorStyles.boldLabel);
-
+        GUILayout.Space(120f);
         #endregion
 
         DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
@@ -144,7 +165,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
 
         #region Group Under
-        DrawSection("Group Under", ref showOtherSection, null, groupUnderIconPath, AddColor("#B282FF"));
+        DrawSection("Group Under", ref showGroupUnderSection, DisplayGroupUnderSection, groupUnderIconPath, AddColor("#B282FF"));
         #endregion
 
         DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
@@ -175,6 +196,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
         #region Button(s) Footer
         GUILayout.FlexibleSpace();
+        EditorGUILayout.EndScrollView();
 
         // Display warning.
         if (selectedGameObject == null)
@@ -285,6 +307,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     }
     #endregion
 
+    #region Sections
     /// <summary>
     /// Display the "Number of Copies" section.
     /// </summary>
@@ -297,8 +320,65 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUI.contentColor = Color.white;
         GUI.backgroundColor = Color.white;
 
+        EditorGUILayout.BeginHorizontal();
         GUIContent numOfCopiesContent = new GUIContent("Number of copies:", numOfCopiesTooltip);
         numOfCopies = EditorGUILayout.IntSlider(numOfCopiesContent, numOfCopies, 0, 1000);
+        if (GUILayout.Button("-"))
+        {
+            numOfCopies = Mathf.Clamp(numOfCopies - 1, 0, 1000);
+        }
+        if (GUILayout.Button("+"))
+        {
+            numOfCopies = Mathf.Clamp(numOfCopies + 1, 0, 1000);
+        }
+        EditorGUILayout.EndHorizontal();
+    }
+
+    /// <summary>
+    /// Display the "Group Under" section.
+    /// </summary>
+    protected void DisplayGroupUnderSection()
+    {
+        var text = new string[] { "None", "This", "Parent", "World", "New Group" };
+        string groupUnderTooltip = string.Empty;
+        string groupName = "N/A";
+
+        GUI.backgroundColor = Color.white;
+        GUI.contentColor = Color.white;
+        GUIContent groupUnderContent = new GUIContent("Group Duplicate(s) Under:", "Select which grouping method to group the duplicate(s) under.");
+        groupUnderType = EditorGUILayout.Popup(groupUnderContent, groupUnderType, text);
+
+        if (groupUnderType == 1)
+        {
+            groupName = selectedGameObject != null ? selectedGameObject.name : groupName;
+        }
+        if (groupUnderType == 2)
+        {
+            GUIContent groupParentContent = new GUIContent("Group Parent:", "All duplicate(s) will be grouped under the group parent.");
+            groupParent = EditorGUILayout.ObjectField(groupParentContent, groupParent, typeof(GameObject), true);
+            groupName = groupParent != null ? groupParent.name : groupName;
+        }
+        else if (groupUnderType == 4)
+        {
+            GUIContent newGroupContent = new GUIContent("Group Name:", "The name of the new group.");
+            newGroupName = EditorGUILayout.TextField(newGroupContent, newGroupName);
+            groupName = newGroupName != string.Empty ? newGroupName : groupName;
+
+            groupRelative = EditorGUILayout.ObjectField("Group This To:", groupRelative, typeof(GameObject), true);
+
+            if (newGroupName == string.Empty)
+            {
+                GUI.backgroundColor = AddColor("#ffb300");
+                GUI.contentColor = AddColor("#ffb300");
+                EditorGUILayout.HelpBox("The group name cannot be empty. Please fill this field with a name.", MessageType.Warning);
+                GUI.contentColor = Color.white;
+                GUI.backgroundColor = Color.white;
+            }
+        }
+        groupUnderTooltip = groupUnderTypeTooltips[groupUnderType];
+        groupUnderTooltip += $"\nGroup Name: {groupName}";
+        EditorGUILayout.HelpBox(groupUnderTooltip, MessageType.Info);
+        GUI.backgroundColor = Color.white;
     }
 
     /// <summary>
@@ -354,6 +434,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUI.backgroundColor = Color.white;
         GUILayout.EndHorizontal();
     }
+    #endregion
 
     #region Miscellaneous
     protected void DrawSection(string header, ref bool foldout, UnityAction ue, string iconPath, Color boxColor)
@@ -374,6 +455,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         };
 
         GUI.backgroundColor = boxColor;
+        GUI.contentColor = Color.white;
         foldout = EditorGUILayout.BeginFoldoutHeaderGroup(foldout, content, headerStyle, null);
         GUI.backgroundColor = Color.white;
         if (foldout && ue != null)
