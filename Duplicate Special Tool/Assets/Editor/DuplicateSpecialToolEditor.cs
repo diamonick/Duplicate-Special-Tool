@@ -37,6 +37,16 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
     // Section Fields
     private bool showNumberOfCopiesSection = false;
+    private int namingMethodType = 0;
+    #endregion
+
+    #region Naming Conventions
+    private int numOfDigits = 1;
+    private int countFromNumbers = 0;
+    private int incrementByNumbers = 0;
+
+    // Section Fields
+    private bool showNamingConventionsSection = false;
     #endregion
 
     #region Group Under
@@ -65,18 +75,24 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private bool isDefaultPosition;
     private readonly string positionTooltip = "Specify the number of copies to create from the selected GameObject." +
                                                  "The range is from 1 to 1000.";
+    private readonly string resetPositionTooltip = "Reset postion values to their default values.\n\n" +
+                                                   "Default position is (X: 0.0, Y: 0.0, Z: 0.0).";
 
     // Property: Rotate (Offset).
     private Vector3 rotationProp = Vector3.zero;
     private bool isDefaultRotation;
     private readonly string rotationTooltip = "Specify the number of copies to create from the selected GameObject." +
                                                  "The range is from 1 to 1000.";
+    private readonly string resetRotationTooltip = "Reset rotation values to their default values.\n\n" +
+                                                   "Default rotation is (X: 0.0, Y: 0.0, Z: 0.0).";
 
     // Property: Scale (Offset).
     private Vector3 scaleProp = Vector3.one;
     private bool isDefaultScale;
     private readonly string scaleTooltip = "Specify the number of copies to create from the selected GameObject." +
                                                  "The range is from 1 to 1000.";
+    private readonly string resetScaleTooltip = "Reset scale values to their default values.\n\n" +
+                                                "Default scale is (X: 1.0, Y: 1.0, Z: 1.0).";
 
     // Section Fields
     private bool showTransformSection = false;
@@ -159,7 +175,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
 
         #region Naming Conventions
-        DrawSection("Naming Conventions", ref showOtherSection, null, namingConventionsIconPath, AddColor("#00BEFF"));
+        DrawSection("Naming Conventions", ref showNamingConventionsSection, DisplayNamingConventionsSection, namingConventionsIconPath, AddColor("#00BEFF"));
         #endregion
 
         DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
@@ -319,8 +335,10 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUI.enabled = true;
         GUI.contentColor = Color.white;
         GUI.backgroundColor = Color.white;
+        GUILayout.Space(8);
 
         EditorGUILayout.BeginHorizontal();
+        DrawBulletPoint("#00E6BC");
         GUIContent numOfCopiesContent = new GUIContent("Number of copies:", numOfCopiesTooltip);
         numOfCopies = EditorGUILayout.IntSlider(numOfCopiesContent, numOfCopies, 0, 1000);
         if (GUILayout.Button("-"))
@@ -332,6 +350,84 @@ public class DuplicateSpecialToolEditor : EditorWindow
             numOfCopies = Mathf.Clamp(numOfCopies + 1, 0, 1000);
         }
         EditorGUILayout.EndHorizontal();
+    }
+
+    /// <summary>
+    /// Display the "Naming Conventions" section.
+    /// </summary>
+    protected void DisplayNamingConventionsSection()
+    {
+        var namingMethods = new string[] { "Numbers", "Letters", "Custom" };
+        GUIContent namingMethodContent = new GUIContent("Naming Method:", "");
+        namingMethodType = EditorGUILayout.Popup(namingMethodContent, namingMethodType, namingMethods);
+        GUI.contentColor = Color.white;
+        GUI.backgroundColor = Color.white;
+        GUILayout.Space(8);
+
+        if (namingMethodType == 0)
+        {
+            EditorGUILayout.BeginHorizontal();
+            GUIContent numOfDigitsContent = new GUIContent("Number of digits:", "");
+            DrawBulletPoint("#00BEFF");
+            numOfDigits = EditorGUILayout.IntSlider(numOfDigitsContent, numOfDigits, 1, 10);
+            if (GUILayout.Button("-"))
+            {
+                numOfDigits = Mathf.Clamp(numOfDigits - 1, 1, 10);
+            }
+            if (GUILayout.Button("+"))
+            {
+                numOfDigits = Mathf.Clamp(numOfDigits + 1, 1, 10);
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            DrawBulletPoint("#00BEFF");
+            GUIContent countFromContent = new GUIContent("Count from:", "");
+            countFromNumbers = EditorGUILayout.IntSlider(countFromContent, countFromNumbers, 0, 100);
+            if (GUILayout.Button("-"))
+            {
+                countFromNumbers = Mathf.Clamp(countFromNumbers - 1, 0, 100);
+            }
+            if (GUILayout.Button("+"))
+            {
+                countFromNumbers = Mathf.Clamp(countFromNumbers + 1, 0, 100);
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            DrawBulletPoint("#00BEFF");
+            GUIContent incrementByContent = new GUIContent("Increment by:", "");
+            incrementByNumbers = EditorGUILayout.IntSlider(incrementByContent, incrementByNumbers, 1, 100);
+            if (GUILayout.Button("-"))
+            {
+                incrementByNumbers = Mathf.Clamp(incrementByNumbers - 1, 1, 100);
+            }
+            if (GUILayout.Button("+"))
+            {
+                incrementByNumbers = Mathf.Clamp(incrementByNumbers + 1, 1, 100);
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+        else
+        {
+
+        }
+
+        GUILayout.Space(8);
+
+        GUIStyle headerStyle = new GUIStyle(GUI.skin.box)
+        {
+            fontStyle = FontStyle.Bold,
+            fontSize = 10,
+            alignment = TextAnchor.MiddleLeft,
+            fixedHeight = 24f,
+            stretchWidth = true,
+            wordWrap = false,
+            clipping = TextClipping.Clip
+        };
+
+        string name = $"Temp";
+        GUILayout.Box($"Name Template: {name}", headerStyle);
     }
 
     /// <summary>
@@ -347,6 +443,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUI.contentColor = Color.white;
         GUIContent groupUnderContent = new GUIContent("Group Duplicate(s) Under:", "Select which grouping method to group the duplicate(s) under.");
         groupUnderType = EditorGUILayout.Popup(groupUnderContent, groupUnderType, text);
+        GUILayout.Space(8);
 
         if (groupUnderType == 1)
         {
@@ -354,17 +451,25 @@ public class DuplicateSpecialToolEditor : EditorWindow
         }
         if (groupUnderType == 2)
         {
+            GUILayout.BeginHorizontal();
             GUIContent groupParentContent = new GUIContent("Group Parent:", "All duplicate(s) will be grouped under the group parent.");
+            DrawBulletPoint("#B282FF");
             groupParent = EditorGUILayout.ObjectField(groupParentContent, groupParent, typeof(GameObject), true);
             groupName = groupParent != null ? groupParent.name : groupName;
+            GUILayout.EndHorizontal();
         }
         else if (groupUnderType == 4)
         {
+            GUILayout.BeginHorizontal();
             GUIContent newGroupContent = new GUIContent("Group Name:", "The name of the new group.");
+            DrawBulletPoint("#B282FF");
             newGroupName = EditorGUILayout.TextField(newGroupContent, newGroupName);
             groupName = newGroupName != string.Empty ? newGroupName : groupName;
+            GUILayout.EndHorizontal();
 
-            groupRelative = EditorGUILayout.ObjectField("Group This To:", groupRelative, typeof(GameObject), true);
+            GUILayout.BeginHorizontal();
+            DrawBulletPoint("#B282FF");
+            groupRelative = EditorGUILayout.ObjectField("Group This Under:", groupRelative, typeof(GameObject), true);
 
             if (newGroupName == string.Empty)
             {
@@ -374,6 +479,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 GUI.contentColor = Color.white;
                 GUI.backgroundColor = Color.white;
             }
+            GUILayout.EndHorizontal();
         }
         groupUnderTooltip = groupUnderTypeTooltips[groupUnderType];
         groupUnderTooltip += $"\nGroup Name: {groupName}";
@@ -386,17 +492,19 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// </summary>
     protected void DisplayTransformSection()
     {
-        transformMode = EditorGUILayout.Popup("Mode (2D/3D):", transformMode, transformModes);
+        transformMode = EditorGUILayout.Popup("Mode:", transformMode, transformModes);
         GUILayout.Space(8);
 
         GUILayout.BeginHorizontal();
+        DrawBulletPoint("#FD6D40");
         GUIContent positionContent = new GUIContent("Translate (Offset):", positionTooltip);
+        GUIContent resetPositionContent = new GUIContent("↺", resetPositionTooltip);
         positionProp = EditorGUILayout.Vector3Field(positionContent, positionProp);
         isDefaultPosition = positionProp == Vector3.zero;
 
         GUI.backgroundColor = isDefaultPosition ? Color.white : Color.green;
         GUI.enabled = !isDefaultPosition;
-        if (GUILayout.Button("↺"))
+        if (GUILayout.Button(resetPositionContent))
         {
             ResetTransformProperty(ref positionProp, Vector3.zero);
         }
@@ -405,13 +513,15 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUILayout.EndHorizontal();
 
         GUILayout.BeginHorizontal();
+        DrawBulletPoint("#FD6D40");
         GUIContent rotationContent = new GUIContent("Rotate (Offset):", rotationTooltip);
+        GUIContent resetRotationContent = new GUIContent("↺", resetRotationTooltip);
         rotationProp = EditorGUILayout.Vector3Field(rotationContent, rotationProp);
         isDefaultRotation = rotationProp == Vector3.zero;
 
         GUI.backgroundColor = isDefaultRotation ? Color.white : Color.green;
         GUI.enabled = !isDefaultRotation;
-        if (GUILayout.Button("↺"))
+        if (GUILayout.Button(resetRotationContent))
         {
             ResetTransformProperty(ref rotationProp, Vector3.zero);
         }
@@ -420,13 +530,15 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUILayout.EndHorizontal();
 
         GUILayout.BeginHorizontal();
+        DrawBulletPoint("#FD6D40");
         GUIContent scaleContent = new GUIContent("Scale (Offset):", scaleTooltip);
+        GUIContent resetScaleContent = new GUIContent("↺", resetScaleTooltip);
         scaleProp = EditorGUILayout.Vector3Field(scaleContent, scaleProp);
         isDefaultScale = scaleProp == Vector3.one;
 
         GUI.backgroundColor = isDefaultScale ? Color.white : Color.green;
         GUI.enabled = !isDefaultScale;
-        if (GUILayout.Button("↺"))
+        if (GUILayout.Button(resetScaleContent))
         {
             ResetTransformProperty(ref scaleProp, Vector3.one);
         }
@@ -436,7 +548,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     }
     #endregion
 
-    #region Miscellaneous
+    #region Draw Window Element Method(s)
     protected void DrawSection(string header, ref bool foldout, UnityAction ue, string iconPath, Color boxColor)
     {
         var icon = AssetDatabase.LoadAssetAtPath(iconPath, typeof(Texture2D)) as Texture2D;
@@ -457,49 +569,13 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUI.backgroundColor = boxColor;
         GUI.contentColor = Color.white;
         foldout = EditorGUILayout.BeginFoldoutHeaderGroup(foldout, content, headerStyle, null);
+        GUI.contentColor = Color.white;
         GUI.backgroundColor = Color.white;
         if (foldout && ue != null)
         {
             ue.Invoke();
         }
         EditorGUILayout.EndFoldoutHeaderGroup();
-    }
-
-    /// <summary>
-    /// Get color from hex string.
-    /// </summary>
-    /// <param name="hexColor">Hex color string.</param>
-    /// <returns>New color.</returns>
-    protected Color GetColorFromHexString(string hexColor)
-    {
-        Color color = Color.white;
-        ColorUtility.TryParseHtmlString(hexColor, out color);
-        return color;
-    }
-
-    /// <summary>
-    /// Add color to existing color.
-    /// </summary>
-    /// <param name="color">Added color.</param>
-    /// <returns>New color.</returns>
-    protected Color AddColor(Color color)
-    {
-        color += color;
-        return color;
-    }
-
-    /// <summary>
-    /// Add color to existing color.
-    /// </summary>
-    /// <param name="hexColor">Hex color string.</param>
-    /// <returns>New color.</returns>
-    protected Color AddColor(string hexColor)
-    {
-        Color color = Color.white;
-        ColorUtility.TryParseHtmlString(hexColor, out color);
-        color += color;
-
-        return color;
     }
 
     /// <summary>
@@ -523,6 +599,66 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUI.color = c;
 
         GUILayout.Space(spacing);
+    }
+
+    /// <summary>
+    /// Draw bullet point: "•"
+    /// </summary>
+    /// <param name="bulletPointColor">Bullet point color string (Hexadecimal).</param>
+    protected static void DrawBulletPoint(string bulletPointColor)
+    {
+        // GUI Style: Bullet Point
+        GUIStyle bulletPointStyle = new GUIStyle(GUI.skin.label)
+        {
+            fontSize = 12,
+            stretchWidth = true,
+            fixedWidth = 12
+        };
+
+        // Draw bullet point w/ the specified color.
+        GUI.contentColor = GetColorFromHexString(bulletPointColor);
+        GUILayout.Label("•", bulletPointStyle);
+        GUI.contentColor = Color.white;
+    }
+    #endregion
+
+    #region Miscellaneous
+
+    /// <summary>
+    /// Get color from hex string.
+    /// </summary>
+    /// <param name="hexColor">Hex color string.</param>
+    /// <returns>New color.</returns>
+    protected static Color GetColorFromHexString(string hexColor)
+    {
+        Color color = Color.white;
+        ColorUtility.TryParseHtmlString(hexColor, out color);
+        return color;
+    }
+
+    /// <summary>
+    /// Add color to existing color.
+    /// </summary>
+    /// <param name="color">Added color.</param>
+    /// <returns>New color.</returns>
+    protected static Color AddColor(Color color)
+    {
+        color += color;
+        return color;
+    }
+
+    /// <summary>
+    /// Add color to existing color.
+    /// </summary>
+    /// <param name="hexColor">Hex color string.</param>
+    /// <returns>New color.</returns>
+    protected static Color AddColor(string hexColor)
+    {
+        Color color = Color.white;
+        ColorUtility.TryParseHtmlString(hexColor, out color);
+        color += color;
+
+        return color;
     }
     #endregion
 
