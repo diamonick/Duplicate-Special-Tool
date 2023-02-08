@@ -56,6 +56,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private readonly string namingConventionsIconPath = "Assets/Editor/Icons/NamingConventionIcon.png";
     private readonly string groupUnderIconPath = "Assets/Editor/Icons/GroupUnderIcon.png";
     private readonly string transformIconPath = "Assets/Editor/Icons/TransformIcon.png";
+    private readonly string linkOnIconPath = "Assets/Editor/Icons/LinkOnIcon.png";
+    private readonly string linkOffIconPath = "Assets/Editor/Icons/LinkOffIcon.png";
 
     #region Number of Copies
     // Property: Selected GameObject.
@@ -140,7 +142,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     // Property: Translate (Offset).
     private Vector3 positionProp = Vector3.zero;
     private bool isDefaultPosition;
-    private bool lockPosition = false;
+    private bool linkPosition = false;
     private readonly string positionTooltip = "Specify the number of copies to create from the selected GameObject." +
                                                  "The range is from 1 to 1000.";
     private readonly string resetPositionTooltip = "Reset postion values to their default values.\n\n" +
@@ -149,7 +151,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     // Property: Rotate (Offset).
     private Vector3 rotationProp = Vector3.zero;
     private bool isDefaultRotation;
-    private bool lockRotation = false;
+    private bool linkRotation = false;
     private readonly string rotationTooltip = "Specify the number of copies to create from the selected GameObject." +
                                                  "The range is from 1 to 1000.";
     private readonly string resetRotationTooltip = "Reset rotation values to their default values.\n\n" +
@@ -158,7 +160,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     // Property: Scale (Offset).
     private Vector3 scaleProp = Vector3.one;
     private bool isDefaultScale;
-    private bool lockScale = false;
+    private bool linkScale = false;
     private readonly string scaleTooltip = "Specify the number of copies to create from the selected GameObject." +
                                                  "The range is from 1 to 1000.";
     private readonly string resetScaleTooltip = "Reset scale values to their default values.\n\n" +
@@ -858,6 +860,10 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// </summary>
     protected void DisplayTransformSection()
     {
+        // Get textures of both link icons (ON/OFF).
+        var linkOnIcon = AssetDatabase.LoadAssetAtPath(linkOnIconPath, typeof(Texture2D)) as Texture2D;
+        var linkOffIcon = AssetDatabase.LoadAssetAtPath(linkOffIconPath, typeof(Texture2D)) as Texture2D;
+
         GUI.backgroundColor = AddColor("#FD6D40");
         transformMode = EditorGUILayout.Popup("Mode:", transformMode, transformModes);
         DrawPopupInfoBox(transformModeTooltips[transformMode], "#FD6D40");
@@ -879,9 +885,15 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUIContent positionContent = new GUIContent("Translate (Offset):", positionTooltip);
         GUIContent resetPositionContent = new GUIContent("↺", resetPositionTooltip);
         GUILayout.Label(positionContent);
+        Texture2D linkPositionIcon = linkPosition ? linkOnIcon : linkOffIcon;
+        linkPosition = GUILayout.Toggle(linkPosition, linkPositionIcon, EditorStyles.miniButton, GUILayout.Width(28));
+        if (linkPosition)
+        {
+
+        }
         positionProp.x = DrawVectorComponent("X", positionProp.x, true);
-        positionProp.y = DrawVectorComponent("Y", positionProp.y, true);
-        positionProp.z = DrawVectorComponent("Z", positionProp.z, transformMode == 1);
+        positionProp.y = DrawVectorComponent("Y", linkPosition ? positionProp.x : positionProp.y, !linkPosition);
+        positionProp.z = DrawVectorComponent("Z", linkPosition ? positionProp.x : positionProp.z, !linkPosition, transformMode == 1);
 
         isDefaultPosition = positionProp == Vector3.zero;
         GUI.backgroundColor = isDefaultPosition ? Color.white : AddColor("#70e04a");
@@ -901,9 +913,15 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUIContent rotationContent = new GUIContent("Rotate (Offset):     ", rotationTooltip);
         GUIContent resetRotationContent = new GUIContent("↺", resetRotationTooltip);
         GUILayout.Label(rotationContent);
+        Texture2D linkRotationIcon = linkRotation ? linkOnIcon : linkOffIcon;
+        linkRotation = GUILayout.Toggle(linkRotation, linkRotationIcon, EditorStyles.miniButton, GUILayout.Width(28));
+        if (linkRotation)
+        {
+
+        }
         rotationProp.x = DrawVectorComponent("X", rotationProp.x, true);
-        rotationProp.y = DrawVectorComponent("Y", rotationProp.y, true);
-        rotationProp.z = DrawVectorComponent("Z", rotationProp.z, transformMode == 1);
+        rotationProp.y = DrawVectorComponent("Y", linkRotation ? rotationProp.x : rotationProp.y, !linkRotation);
+        rotationProp.z = DrawVectorComponent("Z", linkRotation ? rotationProp.x : rotationProp.z, !linkRotation, transformMode == 1);
 
         isDefaultRotation = rotationProp == Vector3.zero;
         GUI.backgroundColor = isDefaultRotation ? Color.white : AddColor("#70e04a");
@@ -923,9 +941,15 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUIContent scaleContent = new GUIContent("Scale (Offset):       ", scaleTooltip);
         GUIContent resetScaleContent = new GUIContent("↺", resetScaleTooltip);
         GUILayout.Label(scaleContent);
+        Texture2D linkScaleIcon = linkScale ? linkOnIcon : linkOffIcon;
+        linkScale = GUILayout.Toggle(linkScale, linkScaleIcon, EditorStyles.miniButton, GUILayout.Width(28));
+        if (linkScale)
+        {
+
+        }
         scaleProp.x = DrawVectorComponent("X", scaleProp.x, true);
-        scaleProp.y = DrawVectorComponent("Y", scaleProp.y, true);
-        scaleProp.z = DrawVectorComponent("Z", scaleProp.z, transformMode == 1);
+        scaleProp.y = DrawVectorComponent("Y", linkScale ? scaleProp.x : scaleProp.y, !linkScale);
+        scaleProp.z = DrawVectorComponent("Z", linkScale ? scaleProp.x : scaleProp.z, !linkScale, transformMode == 1);
 
         isDefaultScale = scaleProp == Vector3.one;
         GUI.backgroundColor = isDefaultScale ? Color.white : AddColor("#70e04a");
@@ -943,9 +967,19 @@ public class DuplicateSpecialToolEditor : EditorWindow
     #endregion
 
     #region Draw Window Element Method(s)
-    private float DrawVectorComponent(string text, float value, bool condition)
+    private float DrawVectorComponent(string text, float value, params bool[] conditions)
     {
-        GUI.enabled = condition;
+        bool isEnabled = true;
+        foreach (bool condition in conditions)
+        {
+            if (condition)
+                continue;
+
+            isEnabled = false;
+            break;
+        }
+
+        GUI.enabled = isEnabled;
         value = EditorGUILayout.FloatField(text, value);
         GUI.enabled = true;
         return value;
