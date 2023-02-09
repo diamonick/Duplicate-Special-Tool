@@ -86,8 +86,10 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private readonly int countFromAmount = 100;
     private readonly int incrementalAmount = 10;
     private bool addSpace = true;
-    private bool addUnderscore = false;
     private bool addParentheses = false;
+    private bool addBrackets = false;
+    private bool addBraces = false;
+    private bool addUnderscore = false;
     private bool addHyphen = false;
     private string nameSeparator = "";
 
@@ -97,10 +99,12 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private string replacementName = "New GameObject";
     private string prefixName;
     private bool numeratePrefix = false;
+    private int numOfLeadingDigitsPrefix = 0;
     private int countFromPrefix = 0;
     private int incrementByPrefix = 0;
     private string suffixName;
     private bool numerateSuffix = false;
+    private int numOfLeadingDigitsSuffix = 0;
     private int countFromSuffix = 0;
     private int incrementBySuffix = 0;
 
@@ -139,35 +143,67 @@ public class DuplicateSpecialToolEditor : EditorWindow
         "Randomly set the position, rotation, and scale of all duplicate(s)."
     };
 
+    #region Position
     // Property: Translate (Offset).
     private Vector3 positionProp = Vector3.zero;
     private bool isDefaultPosition;
     private bool linkPosition = false;
     private readonly string positionTooltip = "Specify the number of copies to create from the selected GameObject." +
-                                                 "The range is from 1 to 1000.";
+                                              "The range is from 1 to 1000.";
+    private readonly string linkPositionTooltip = "Link the axes to set uniform position values for all axes.\n" +
+                                                  "Unlink the axes to set different position values for the X, Y, and Z " +
+                                                  "axis properties.";
     private readonly string resetPositionTooltip = "Reset postion values to their default values.\n\n" +
                                                    "Default position is (X: 0.0, Y: 0.0, Z: 0.0).";
+    #endregion
 
+    #region Rotation
     // Property: Rotate (Offset).
     private Vector3 rotationProp = Vector3.zero;
     private bool isDefaultRotation;
     private bool linkRotation = false;
     private readonly string rotationTooltip = "Specify the number of copies to create from the selected GameObject." +
-                                                 "The range is from 1 to 1000.";
+                                              "The range is from 1 to 1000.";
+    private readonly string linkRotationTooltip = "Link the axes to set uniform rotation values for all axes.\n" +
+                                                  "Unlink the axes to set different rotation values for the X, Y, and Z " +
+                                                  "axis properties.";
     private readonly string resetRotationTooltip = "Reset rotation values to their default values.\n\n" +
                                                    "Default rotation is (X: 0.0, Y: 0.0, Z: 0.0).";
 
+    // Grid Mode
+
+    // Circle Mode
+    private float radius;
+
+    // Random Mode
+    private bool randomizePosition = false;
+    private float minDistance = 0f;
+    private float maxDistance = 100f;
+
+    private bool randomizeRotation = false;
+    private bool randomizePitch = false;
+    private bool randomizeYaw = false;
+    private bool randomizeRoll = false;
+
+    private bool randomizeScale = false;
+    #endregion
+
+    #region Scale
     // Property: Scale (Offset).
     private Vector3 scaleProp = Vector3.one;
     private bool isDefaultScale;
     private bool linkScale = false;
     private readonly string scaleTooltip = "Specify the number of copies to create from the selected GameObject." +
-                                                 "The range is from 1 to 1000.";
+                                           "The range is from 1 to 1000.";
+    private readonly string linkScaleTooltip = "Link the axes to set uniform scale values for all axes.\n" +
+                                               "Unlink the axes to set different scale values for the X, Y, and Z " +
+                                               "axis properties.";
     private readonly string resetScaleTooltip = "Reset scale values to their default values.\n\n" +
                                                 "Default scale is (X: 1.0, Y: 1.0, Z: 1.0).";
 
     // Section Fields
     private bool showTransformSection = false;
+    #endregion
     #endregion
 
     #region Button(s) Footer
@@ -191,6 +227,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     // Section Fields
     private bool showOtherSection = false;
     #endregion
+    private string templateName;
 
     #region Menu Item + Validation
     /// <summary>
@@ -313,6 +350,15 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
         DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
 
+        // Display Duplicate Special information.
+        string objectName = selectedGameObject != null ? selectedGameObject.name : "N/A";
+        EditorGUILayout.HelpBox($"Selected GameObject: {objectName}\n" +
+                                $"No. of copies: {numOfCopies}\n" +
+                                $"Name Template: {templateName}\n" +
+                                $"Group Under: {newGroupName}", MessageType.Info);
+
+        DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
+
         //This is the important bit, we set the width to the calculated width of the content in the GUIStyle of the control
         //EditorGUILayout.LabelField(label, GUILayout.Width(GUI.skin.label.CalcSize(label).x));
 
@@ -360,10 +406,12 @@ public class DuplicateSpecialToolEditor : EditorWindow
         v = defaultValue;
     }
 
-    private void SetNameSeparatorToggles(bool bAddSpace, bool bAddParentheses, bool bAddUnderscore, bool bAddHyphen)
+    private void SetNameSeparatorToggles(bool bAddParentheses, bool bAddBrackets, bool bAddBraces,
+                                         bool bAddUnderscore, bool bAddHyphen)
     {
-        addSpace = bAddSpace;
         addParentheses = bAddParentheses;
+        addBrackets = bAddBrackets;
+        addBraces = bAddBraces;
         addUnderscore = bAddUnderscore;
         addHyphen = bAddHyphen;
     }
@@ -372,11 +420,22 @@ public class DuplicateSpecialToolEditor : EditorWindow
     {
         string templateName = string.Empty;
         string selectedName = selectedGameObject != null ? selectedGameObject.name : string.Empty;
-        string numericalPrefix = gameObjectPrefixNum.ToString();
-        string numericalSuffix = gameObjectSuffixNum.ToString();
+        string numericalPrefix = numeratePrefix ? gameObjectPrefixNum.ToString() + " " : string.Empty;
+        string numericalSuffix = numerateSuffix ? gameObjectSuffixNum.ToString() + " ": string.Empty;
+
+        // Add leading zeros "0" before the starting number (Prefix).
+        for (int i = 0; i < numOfLeadingDigitsPrefix; i++)
+        {
+            numericalPrefix = numericalPrefix.Insert(0, "0");
+        }
+        // Add leading zeros "0" before the starting number (Suffix).
+        for (int i = 0; i < numOfLeadingDigitsSuffix; i++)
+        {
+            numericalSuffix = numericalSuffix.Insert(0, "0");
+        }
 
         selectedName = replaceFullName ? replacementName : selectedName;
-        templateName = $"{prefixName}{numericalPrefix} {selectedName} {suffixName}{numericalSuffix}";
+        templateName = $"{prefixName}{numericalPrefix}{selectedName} {suffixName}{numericalSuffix}";
 
         return templateName;
     }
@@ -384,6 +443,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private string GetNumericalTemplateName(int gameObjectNum)
     {
         string templateName = string.Empty;
+        string space = addSpace ? " " : string.Empty;
         string numericalSuffix = gameObjectNum.ToString();
         string selectedName = selectedGameObject != null ? selectedGameObject.name : string.Empty;
 
@@ -392,10 +452,13 @@ public class DuplicateSpecialToolEditor : EditorWindow
         {
             numericalSuffix = numericalSuffix.Insert(0, "0");
         }
-        if (addSpace) { numericalSuffix = $" {numericalSuffix}"; }
-        else if (addParentheses) { numericalSuffix = $"({numericalSuffix})"; }
-        else if (addUnderscore) { numericalSuffix = $"_{numericalSuffix}"; }
-        else if (addHyphen) { numericalSuffix = $"-{numericalSuffix}"; }
+
+        if (addParentheses) { numericalSuffix = $"{space}({numericalSuffix})"; }            // Parentheses ()
+        else if (addBrackets) { numericalSuffix = $"{space}[{numericalSuffix}]"; }          // Brackets []
+        else if (addBraces) { numericalSuffix = $"{space}{{{numericalSuffix}}}"; }          // Braces {}
+        else if (addUnderscore) { numericalSuffix = $"{space}_{space}{numericalSuffix}"; }  // Underscore _
+        else if (addHyphen) { numericalSuffix = $"{space}-{space}{numericalSuffix}"; }      // Hypen -
+        else { numericalSuffix = $"{space}{numericalSuffix}"; }
 
         templateName = $"{selectedName}{numericalSuffix}";
 
@@ -450,25 +513,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             {
                 GameObject duplicatedObj = Instantiate<GameObject>(selectedGameObject);
 
-                string newName = string.Empty;
-                int gameObjectNum = (countFromNumbers + (i * incrementByNumbers));
-                int gameObjectPrefixNum = (countFromPrefix + (i * incrementByPrefix));
-                int gameObjectSuffixNum = (countFromSuffix + (i * incrementBySuffix));
-
-                if (namingMethodType == NamingMethod.Numbers)
-                {
-                    newName = GetNumericalTemplateName(gameObjectNum);
-                }
-                else
-                {
-                    newName = GetCustomTemplateName(gameObjectPrefixNum, gameObjectSuffixNum);
-                }
-                // Set duplicate's name.
-                duplicatedObj.name = newName;
-
                 // Set duplicate's position, rotation, and scale.
-                duplicatedObj.transform.position = positionProp * i;
-                duplicatedObj.transform.localEulerAngles = rotationProp * i;
                 duplicatedObj.transform.localScale = scaleProp;
 
                 // Prevent method from adding redundant object(s) to list.
@@ -492,6 +537,14 @@ public class DuplicateSpecialToolEditor : EditorWindow
                     newGroup.transform.SetParent(groupRelative.transform);
                 }
             }
+
+            // Set the names of all duplicates.
+            SetNames(duplicatedObjects);
+            // Set the position of all duplicates.
+            SetPositions(duplicatedObjects);
+            // Set the rotation of all duplicates.
+            SetRotations(duplicatedObjects);
+
             // Group all duplicated objects under the appropriate object.
             foreach (GameObject duplicatedObj in duplicatedObjects)
             {
@@ -534,6 +587,203 @@ public class DuplicateSpecialToolEditor : EditorWindow
         }
 
         return target;
+    }
+
+    private void SetNames(List<GameObject> duplicatedObjects)
+    {
+        int index = 0;
+
+        foreach (GameObject duplicatedObj in duplicatedObjects)
+        {
+            string newName = string.Empty;
+            int gameObjectNum = (countFromNumbers + (index * incrementByNumbers));
+            int gameObjectPrefixNum = (countFromPrefix + (index * incrementByPrefix));
+            int gameObjectSuffixNum = (countFromSuffix + (index * incrementBySuffix));
+
+            if (namingMethodType == NamingMethod.Numbers)
+            {
+                newName = GetNumericalTemplateName(gameObjectNum);
+            }
+            else
+            {
+                newName = GetCustomTemplateName(gameObjectPrefixNum, gameObjectSuffixNum);
+            }
+
+            // Set duplicate's name.
+            duplicatedObj.name = newName;
+
+            // Increment index.
+            index++;
+        }
+    }
+
+
+    #region Positional Method(s)
+    /// <summary>
+    /// Set the positions of all duplicates.
+    /// </summary>
+    /// <param name="duplicatedObjects">Duplicated objects.</param>
+    private void SetPositions(List<GameObject> duplicatedObjects)
+    {
+        if (transformMode == 0 || transformMode == 1)
+        {
+            DistributeDuplicatesLinearly(duplicatedObjects);
+        }
+        else if (transformMode == 3)
+        {
+            DistributeDuplicatesInCircle(duplicatedObjects);
+        }
+        else if (transformMode == 4)
+        {
+            if (randomizePosition)
+            {
+                DistributeDuplicatesAtRandom(duplicatedObjects);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Distribute all duplicate(s) linearly.
+    /// </summary>
+    /// <param name="duplicatedObjects">Duplicated objects.</param>
+    private void DistributeDuplicatesLinearly(List<GameObject> duplicatedObjects)
+    {
+        int index = 0;
+
+        foreach (GameObject duplicatedObj in duplicatedObjects)
+        {
+            Vector3 position = positionProp;
+            position.z = transformMode == 0 ? 0f : position.z;
+
+            duplicatedObj.transform.position = position;
+
+            // Increment index.
+            index++;
+        }
+    }
+
+    /// <summary>
+    /// Distribute all duplicate(s) around a circle.
+    /// </summary>
+    /// <param name="duplicatedObjects">Duplicated objects.</param>
+    private void DistributeDuplicatesInCircle(List<GameObject> duplicatedObjects)
+    {
+        int index = 0;
+        Vector3 centerPoint = selectedGameObject != null ? selectedGameObject.transform.position : Vector3.zero;
+        float angle = 0f;
+        float angleQuotient = duplicatedObjects.Count > 0 ? 360f / duplicatedObjects.Count : 1f;
+
+        // Arrange each duplicate around the center.
+        foreach (GameObject duplicatedObj in duplicatedObjects)
+        {
+            duplicatedObj.transform.position = GetRadialVector(centerPoint, radius, (angleQuotient * index) + angle);
+            angle += angleQuotient;
+
+            // Increment index.
+            index++;
+        }
+    }
+
+    private void DistributeDuplicatesAtRandom(List<GameObject> duplicatedObjects)
+    {
+        int index = 0;
+
+        foreach (GameObject duplicatedObj in duplicatedObjects)
+        {
+            // Get random X-position value.
+            float randX = Random.Range(minDistance, maxDistance);
+            randX = Random.Range(0, 100) > 50 ? -randX : randX;
+            // Get random Y-position value.
+            float randY = Random.Range(minDistance, maxDistance);
+            randY = Random.Range(0, 100) > 50 ? -randY : randY;
+            // Get random Z-position value.
+            float randZ = Random.Range(minDistance, maxDistance);
+            randZ = Random.Range(0, 100) > 50 ? -randZ : randZ;
+
+            // Set duplicate's position.
+            duplicatedObj.transform.position = new Vector3(randX, randY, randZ);
+
+            // Increment index.
+            index++;
+        }
+    }
+    #endregion
+
+    #region Rotational Method(s)
+    /// <summary>
+    /// Set the rotations of all duplicates.
+    /// </summary>
+    /// <param name="duplicatedObjects">Duplicated objects.</param>
+    private void SetRotations(List<GameObject> duplicatedObjects)
+    {
+        if (transformMode == 0 || transformMode == 1)
+        {
+            RotateDuplicatesLinearly(duplicatedObjects);
+        }
+        else if (transformMode == 3)
+        {
+            //DistributeDuplicatesInCircle(duplicatedObjects);
+        }
+        else if (transformMode == 4)
+        {
+            if (randomizeRotation)
+            {
+                RotateDuplicatesAtRandom(duplicatedObjects);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Rotate all duplicate(s) linearly.
+    /// </summary>
+    private void RotateDuplicatesLinearly(List<GameObject> duplicatedObjects)
+    {
+        int index = 0;
+
+        foreach (GameObject duplicatedObj in duplicatedObjects)
+        {
+            Vector3 rotation = rotationProp;
+            rotation.z = transformMode == 0 ? 0f : rotation.z;
+
+            duplicatedObj.transform.eulerAngles = rotation * index;
+
+            // Increment index.
+            index++;
+        }
+    }
+
+    private void RotateDuplicatesAtRandom(List<GameObject> duplicatedObjects)
+    {
+        foreach (GameObject duplicatedObj in duplicatedObjects)
+        {
+            // Get random pitch (X) value.
+            float randPitch = randomizePitch ? Random.Range(0f, 360f) : 0f;
+            // Get random yaw (Y) value.
+            float randYaw = randomizeYaw ? Random.Range(0f, 360f) : 0f;
+            // Get random roll (Z) value.
+            float randRoll = randomizeRoll ? Random.Range(0f, 360f) : 0f;
+
+            // Set duplicate's rotation.
+            duplicatedObj.transform.eulerAngles = new Vector3(randPitch, randYaw, randRoll);
+        }
+    }
+    #endregion
+
+    /// <summary>
+    /// Converts an angle to a position around the center.
+    /// </summary>
+    /// <param name="center">Center.</param>
+    /// <param name="radius">Radius.</param>
+    /// <param name="angle"><Angle (in degrees)./param>
+    /// <returns>The position around the radius.</returns>
+    public Vector3 GetRadialVector(Vector3 center, float radius, float angle)
+    {
+        Vector3 pos;
+        angle -= 90f;
+        pos.x = center.x + radius * -Mathf.Sin(angle * Mathf.Deg2Rad);
+        pos.y = center.y + radius * Mathf.Cos(angle * Mathf.Deg2Rad);
+        pos.z = center.z;
+        return pos;
     }
     #endregion
 
@@ -584,7 +834,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         switch (namingMethodType)
         {
             case NamingMethod.Numbers:
-                #region Number of Digits
+                #region Number of Leading Digits
                 EditorGUILayout.BeginHorizontal();
                 GUIContent numOfLeadingDigitsContent = new GUIContent("Number of leading digits:", "");
                 DrawBulletPoint("#00BEFF");
@@ -628,30 +878,40 @@ public class DuplicateSpecialToolEditor : EditorWindow
                     incrementByNumbers = Mathf.Clamp(incrementByNumbers + 1, 1, incrementalAmount);
                 }
                 EditorGUILayout.EndHorizontal();
+                EditorGUILayout.BeginHorizontal();
+                GUIContent addSpaceContent = new GUIContent("Add Space?", "");
+                DrawBulletPoint("#00BEFF");
+                addSpace = EditorGUILayout.Toggle(addSpaceContent, addSpace);
+                EditorGUILayout.EndHorizontal();
                 GUILayout.Space(12);
 
                 #region Name Separator
                 GUILayout.Label("Separate name and number with:");
                 EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
-                addSpace = GUILayout.Toggle(addSpace, " Space \" \"", EditorStyles.radioButton);
-                if (addSpace)
-                {
-                    SetNameSeparatorToggles(true, false, false, false);
-                }
                 addParentheses = GUILayout.Toggle(addParentheses, " Parentheses \"()\"", EditorStyles.radioButton);
                 if (addParentheses)
                 {
-                    SetNameSeparatorToggles(false, true, false, false);
+                    SetNameSeparatorToggles(true, false, false, false, false);
+                }
+                addBrackets = GUILayout.Toggle(addBrackets, " Brackets \"[]\"", EditorStyles.radioButton);
+                if (addBrackets)
+                {
+                    SetNameSeparatorToggles(false, true, false, false, false);
+                }
+                addBraces = GUILayout.Toggle(addBraces, " Braces \"{}\"", EditorStyles.radioButton);
+                if (addBraces)
+                {
+                    SetNameSeparatorToggles(false, false, true, false, false);
                 }
                 addUnderscore = GUILayout.Toggle(addUnderscore, " Underscore \"_\"", EditorStyles.radioButton);
                 if (addUnderscore)
                 {
-                    SetNameSeparatorToggles(false, false, true, false);
+                    SetNameSeparatorToggles(false, false, false, true, false);
                 }
                 addHyphen = GUILayout.Toggle(addHyphen, " Hyphen \"-\"", EditorStyles.radioButton);
                 if (addHyphen)
                 {
-                    SetNameSeparatorToggles(false, false, false, true);
+                    SetNameSeparatorToggles(false, false, false, false, true);
                 }
                 EditorGUILayout.EndHorizontal();
                 #endregion
@@ -663,6 +923,16 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 replaceFullName = GUILayout.Toggle(replaceFullName, replaceFullNameContent);
                 if (replaceFullName)
                 {
+                    #region Replace in Name
+                    GUI.enabled = false;
+                    EditorGUILayout.BeginHorizontal();
+                    DrawBulletPoint("#00BEFF", 1);
+                    string selectedName = selectedGameObject != null ? selectedGameObject.name : string.Empty;
+                    GUIContent replaceInNameContent = new GUIContent("Replace in Name:", "");
+                    EditorGUILayout.TextField(replaceInNameContent, selectedName);
+                    EditorGUILayout.EndHorizontal();
+                    GUI.enabled = true;
+                    #endregion
                     #region Replace With
                     EditorGUILayout.BeginHorizontal();
                     DrawBulletPoint("#00BEFF", 1);
@@ -694,6 +964,21 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 numeratePrefix = GUILayout.Toggle(numeratePrefix, numeratePrefixContent);
                 if (numeratePrefix)
                 {
+                    #region Number of Leading Digits
+                    EditorGUILayout.BeginHorizontal();
+                    GUIContent numOfLeadingDigitsPrefixContent = new GUIContent("Number of leading digits:", "");
+                    DrawBulletPoint("#00BEFF", 1);
+                    numOfLeadingDigitsPrefix = EditorGUILayout.IntSlider(numOfLeadingDigitsPrefixContent, numOfLeadingDigitsPrefix, 0, 10);
+                    if (GUILayout.Button("-"))
+                    {
+                        numOfLeadingDigitsPrefix = Mathf.Clamp(numOfLeadingDigitsPrefix - 1, 0, 10);
+                    }
+                    if (GUILayout.Button("+"))
+                    {
+                        numOfLeadingDigitsPrefix = Mathf.Clamp(numOfLeadingDigitsPrefix + 1, 0, 10);
+                    }
+                    EditorGUILayout.EndHorizontal();
+                    #endregion
                     #region Count From
                     EditorGUILayout.BeginHorizontal();
                     DrawBulletPoint("#00BEFF", 1);
@@ -741,6 +1026,21 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 numerateSuffix = GUILayout.Toggle(numerateSuffix, numerateSuffixContent);
                 if (numerateSuffix)
                 {
+                    #region Number of Leading Digits
+                    EditorGUILayout.BeginHorizontal();
+                    GUIContent numOfLeadingDigitsSuffixContent = new GUIContent("Number of leading digits:", "");
+                    DrawBulletPoint("#00BEFF", 1);
+                    numOfLeadingDigitsSuffix = EditorGUILayout.IntSlider(numOfLeadingDigitsSuffixContent, numOfLeadingDigitsSuffix, 0, 10);
+                    if (GUILayout.Button("-"))
+                    {
+                        numOfLeadingDigitsSuffix = Mathf.Clamp(numOfLeadingDigitsSuffix - 1, 0, 10);
+                    }
+                    if (GUILayout.Button("+"))
+                    {
+                        numOfLeadingDigitsSuffix = Mathf.Clamp(numOfLeadingDigitsSuffix + 1, 0, 10);
+                    }
+                    EditorGUILayout.EndHorizontal();
+                    #endregion
                     #region Count From
                     EditorGUILayout.BeginHorizontal();
                     DrawBulletPoint("#00BEFF", 1);
@@ -780,7 +1080,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
         #region Name Template
         // Displaye name template.
-        string templateName = string.Empty;
+        templateName = string.Empty;
         if (namingMethodType == NamingMethod.Numbers)
         {
             templateName = GetNumericalTemplateName(countFromNumbers);
@@ -879,95 +1179,208 @@ public class DuplicateSpecialToolEditor : EditorWindow
             EditorGUIUtility.fieldWidth = 72;
         }
 
-        #region Translate
-        GUILayout.BeginHorizontal();
-        DrawBulletPoint("#FD6D40");
-        GUIContent positionContent = new GUIContent("Translate (Offset):", positionTooltip);
-        GUIContent resetPositionContent = new GUIContent("↺", resetPositionTooltip);
-        GUILayout.Label(positionContent);
-        Texture2D linkPositionIcon = linkPosition ? linkOnIcon : linkOffIcon;
-        linkPosition = GUILayout.Toggle(linkPosition, linkPositionIcon, EditorStyles.miniButton, GUILayout.Width(28));
-        if (linkPosition)
+        // Transform Mode(s): 2D/3D
+        if (transformMode == 0 || transformMode == 1)
+        {
+            GUIStyle buttonStyle = new GUIStyle(GUI.skin.button)
+            {
+                fixedWidth = 24,
+                fixedHeight = 24
+            };
+
+            #region Translate
+            GUILayout.BeginHorizontal();
+            DrawBulletPoint("#FD6D40");
+            Texture2D linkPositionIcon = linkPosition ? linkOnIcon : linkOffIcon;
+            GUIContent positionContent = new GUIContent("Translate (Offset):", positionTooltip);
+            GUIContent resetPositionContent = new GUIContent("↺", resetPositionTooltip);
+            GUIContent linkPositionContent = new GUIContent(linkPositionIcon, linkPositionTooltip);
+            GUILayout.Label(positionContent);
+            linkPosition = GUILayout.Toggle(linkPosition, linkPositionContent, buttonStyle);
+
+            float zPos = 0f;
+            if (linkPosition)
+            {
+                zPos = transformMode == 0 ? 0f : positionProp.x;
+            }
+            else
+            {
+                zPos = transformMode == 0 ? 0f : positionProp.z;
+            }
+            positionProp.x = DrawVectorComponent("X", positionProp.x, "#FD6D40", true);
+            positionProp.y = DrawVectorComponent("Y", linkPosition ? positionProp.x : positionProp.y, "#B1FD59", !linkPosition);
+            positionProp.z = DrawVectorComponent("Z", zPos, "#7FD6FD", !linkPosition, transformMode == 1);
+
+            isDefaultPosition = positionProp == Vector3.zero;
+            GUI.backgroundColor = isDefaultPosition ? Color.white : AddColor("#70e04a");
+            GUI.enabled = !isDefaultPosition;
+            if (GUILayout.Button(resetPositionContent, buttonStyle))
+            {
+                ResetTransformProperty(ref positionProp, Vector3.zero);
+            }
+            GUI.enabled = true;
+            GUI.backgroundColor = Color.white;
+            GUILayout.EndHorizontal();
+            #endregion
+
+            #region Rotate
+            GUILayout.BeginHorizontal();
+            DrawBulletPoint("#FD6D40");
+            Texture2D linkRotationIcon = linkRotation ? linkOnIcon : linkOffIcon;
+            GUIContent rotationContent = new GUIContent("Rotate (Offset):     ", rotationTooltip);
+            GUIContent resetRotationContent = new GUIContent("↺", resetRotationTooltip);
+            GUIContent linkRotationContent = new GUIContent(linkRotationIcon, linkRotationTooltip);
+            GUILayout.Label(rotationContent);
+            linkRotation = GUILayout.Toggle(linkRotation, linkRotationContent, buttonStyle);
+
+            float zRot = 0f;
+            if (linkRotation)
+            {
+                zRot = transformMode == 0 ? 0f : rotationProp.x;
+            }
+            else
+            {
+                zRot = transformMode == 0 ? 0f : rotationProp.z;
+            }
+            rotationProp.x = DrawVectorComponent("X", rotationProp.x, "#FD6D40", true);
+            rotationProp.y = DrawVectorComponent("Y", linkRotation ? rotationProp.x : rotationProp.y, "#B1FD59", !linkRotation);
+            rotationProp.z = DrawVectorComponent("Z", zRot, "#7FD6FD", !linkRotation, transformMode == 1);
+
+            isDefaultRotation = rotationProp == Vector3.zero;
+            GUI.backgroundColor = isDefaultRotation ? Color.white : AddColor("#70e04a");
+            GUI.enabled = !isDefaultRotation;
+            if (GUILayout.Button(resetRotationContent, buttonStyle))
+            {
+                ResetTransformProperty(ref rotationProp, Vector3.zero);
+            }
+            GUI.enabled = true;
+            GUI.backgroundColor = Color.white;
+            GUILayout.EndHorizontal();
+            #endregion
+
+            #region Scale
+            GUILayout.BeginHorizontal();
+            DrawBulletPoint("#FD6D40");
+            Texture2D linkScaleIcon = linkScale ? linkOnIcon : linkOffIcon;
+            GUIContent scaleContent = new GUIContent("Scale (Offset):       ", scaleTooltip);
+            GUIContent resetScaleContent = new GUIContent("↺", resetScaleTooltip);
+            GUIContent linkScaleContent = new GUIContent(linkScaleIcon, linkScaleTooltip);
+            GUILayout.Label(scaleContent);
+            linkScale = GUILayout.Toggle(linkScale, linkScaleContent, buttonStyle);
+
+            float zScale = 0f;
+            if (linkScale)
+            {
+                zScale = transformMode == 0 ? 1f : scaleProp.x;
+            }
+            else
+            {
+                zScale = transformMode == 0 ? 1f : scaleProp.z;
+            }
+            scaleProp.x = DrawVectorComponent("X", scaleProp.x, "#FD6D40", true);
+            scaleProp.y = DrawVectorComponent("Y", linkScale ? scaleProp.x : scaleProp.y, "#B1FD59", !linkScale);
+            scaleProp.z = DrawVectorComponent("Z", zScale, "#7FD6FD", !linkScale, transformMode == 1);
+
+            isDefaultScale = scaleProp == Vector3.one;
+            GUI.backgroundColor = isDefaultScale ? Color.white : AddColor("#70e04a");
+            GUI.enabled = !isDefaultScale;
+            if (GUILayout.Button(resetScaleContent, buttonStyle))
+            {
+                ResetTransformProperty(ref scaleProp, Vector3.one);
+            }
+            GUI.enabled = true;
+            GUI.backgroundColor = Color.white;
+            GUILayout.EndHorizontal();
+            #endregion
+        }
+        else if (transformMode == 3)
         {
 
         }
-        positionProp.x = DrawVectorComponent("X", positionProp.x, true);
-        positionProp.y = DrawVectorComponent("Y", linkPosition ? positionProp.x : positionProp.y, !linkPosition);
-        positionProp.z = DrawVectorComponent("Z", linkPosition ? positionProp.x : positionProp.z, !linkPosition, transformMode == 1);
-
-        isDefaultPosition = positionProp == Vector3.zero;
-        GUI.backgroundColor = isDefaultPosition ? Color.white : AddColor("#70e04a");
-        GUI.enabled = !isDefaultPosition;
-        if (GUILayout.Button(resetPositionContent))
+        else if (transformMode == 4)
         {
-            ResetTransformProperty(ref positionProp, Vector3.zero);
+            GUILayout.Space(12);
+
+            #region Randomize Position?
+            GUIContent randomizePositionContent = new GUIContent("Randomize Position?", "");
+            randomizePosition = GUILayout.Toggle(randomizePosition, randomizePositionContent);
+            if (randomizePosition)
+            {
+                #region Distance Range
+                GUILayout.BeginHorizontal();
+                // Calculate minimum distance & clamp it to prevent its value from going over the maximum distance.
+                minDistance = Mathf.Clamp(Mathf.Round(minDistance), 0f, maxDistance);
+                // Calculate maximum distance & clamp it to prevent its value from going under the minimum distance.
+                maxDistance = Mathf.Clamp(Mathf.Round(maxDistance), minDistance, 1000);
+
+                DrawBulletPoint("#FD6D40", 1);
+                GUILayout.Label("Distance Range:");
+                minDistance = EditorGUILayout.FloatField(minDistance);
+                EditorGUILayout.MinMaxSlider(ref minDistance, ref maxDistance, 0f, 1000f);
+                maxDistance = EditorGUILayout.FloatField(maxDistance);
+                GUILayout.EndHorizontal();
+                #endregion
+            }
+            #endregion
+
+            DrawLine(GetColorFromHexString("#555555"), 1, 12f);
+
+            #region Randomize Rotation?
+            GUIContent randomizeRotationContent = new GUIContent("Randomize Rotation?", "");
+            randomizeRotation = GUILayout.Toggle(randomizeRotation, randomizeRotationContent);
+            if (randomizeRotation)
+            {
+                if (EditorGUIUtility.wideMode)
+                {
+                    EditorGUIUtility.wideMode = false;
+                    EditorGUIUtility.labelWidth = 180;
+                }
+
+                #region Randomize Pitch (X)?
+                GUILayout.BeginHorizontal();
+                DrawBulletPoint("#FD6D40", 1);
+                GUIContent randomizePitchContent = new GUIContent("Randomize Pitch (X)?", "");
+                randomizePitch = EditorGUILayout.Toggle(randomizePitchContent, randomizePitch);
+                GUILayout.EndHorizontal();
+                #endregion
+
+                #region Randomize Yaw (Y)?
+                GUILayout.BeginHorizontal();
+                DrawBulletPoint("#FD6D40", 1);
+                GUIContent randomizeYawContent = new GUIContent("Randomize Yaw (Y)?", "");
+                randomizeYaw = EditorGUILayout.Toggle(randomizeYawContent, randomizeYaw);
+                GUILayout.EndHorizontal();
+                #endregion
+
+                #region Randomize Roll (Z)?
+                GUILayout.BeginHorizontal();
+                DrawBulletPoint("#FD6D40", 1);
+                GUIContent randomizeRollContent = new GUIContent("Randomize Roll (Z)?", "");
+                randomizeRoll = EditorGUILayout.Toggle(randomizeRollContent, randomizeRoll);
+                GUILayout.EndHorizontal();
+                #endregion
+            }
+            #endregion
+
+            DrawLine(GetColorFromHexString("#555555"), 1, 12f);
+
+            #region Randomize Scale?
+            GUIContent randomizeScaleContent = new GUIContent("Randomize Scale?", "");
+            randomizeScale = GUILayout.Toggle(randomizeScale, randomizeScaleContent);
+            if (randomizeScale)
+            {
+
+            }
+            #endregion
+
+            GUILayout.Space(12);
         }
-        GUI.enabled = true;
-        GUI.backgroundColor = Color.white;
-        GUILayout.EndHorizontal();
-        #endregion
-
-        #region Rotate
-        GUILayout.BeginHorizontal();
-        DrawBulletPoint("#FD6D40");
-        GUIContent rotationContent = new GUIContent("Rotate (Offset):     ", rotationTooltip);
-        GUIContent resetRotationContent = new GUIContent("↺", resetRotationTooltip);
-        GUILayout.Label(rotationContent);
-        Texture2D linkRotationIcon = linkRotation ? linkOnIcon : linkOffIcon;
-        linkRotation = GUILayout.Toggle(linkRotation, linkRotationIcon, EditorStyles.miniButton, GUILayout.Width(28));
-        if (linkRotation)
-        {
-
-        }
-        rotationProp.x = DrawVectorComponent("X", rotationProp.x, true);
-        rotationProp.y = DrawVectorComponent("Y", linkRotation ? rotationProp.x : rotationProp.y, !linkRotation);
-        rotationProp.z = DrawVectorComponent("Z", linkRotation ? rotationProp.x : rotationProp.z, !linkRotation, transformMode == 1);
-
-        isDefaultRotation = rotationProp == Vector3.zero;
-        GUI.backgroundColor = isDefaultRotation ? Color.white : AddColor("#70e04a");
-        GUI.enabled = !isDefaultRotation;
-        if (GUILayout.Button(resetRotationContent))
-        {
-            ResetTransformProperty(ref rotationProp, Vector3.zero);
-        }
-        GUI.enabled = true;
-        GUI.backgroundColor = Color.white;
-        GUILayout.EndHorizontal();
-        #endregion
-
-        #region Scale
-        GUILayout.BeginHorizontal();
-        DrawBulletPoint("#FD6D40");
-        GUIContent scaleContent = new GUIContent("Scale (Offset):       ", scaleTooltip);
-        GUIContent resetScaleContent = new GUIContent("↺", resetScaleTooltip);
-        GUILayout.Label(scaleContent);
-        Texture2D linkScaleIcon = linkScale ? linkOnIcon : linkOffIcon;
-        linkScale = GUILayout.Toggle(linkScale, linkScaleIcon, EditorStyles.miniButton, GUILayout.Width(28));
-        if (linkScale)
-        {
-
-        }
-        scaleProp.x = DrawVectorComponent("X", scaleProp.x, true);
-        scaleProp.y = DrawVectorComponent("Y", linkScale ? scaleProp.x : scaleProp.y, !linkScale);
-        scaleProp.z = DrawVectorComponent("Z", linkScale ? scaleProp.x : scaleProp.z, !linkScale, transformMode == 1);
-
-        isDefaultScale = scaleProp == Vector3.one;
-        GUI.backgroundColor = isDefaultScale ? Color.white : AddColor("#70e04a");
-        GUI.enabled = !isDefaultScale;
-        if (GUILayout.Button(resetScaleContent))
-        {
-            ResetTransformProperty(ref scaleProp, Vector3.one);
-        }
-        GUI.enabled = true;
-        GUI.backgroundColor = Color.white;
-        GUILayout.EndHorizontal();
-        #endregion
         GUILayout.EndVertical();
     }
     #endregion
 
     #region Draw Window Element Method(s)
-    private float DrawVectorComponent(string text, float value, params bool[] conditions)
+    private float DrawVectorComponent(string text, float value, string boxColor, params bool[] conditions)
     {
         bool isEnabled = true;
         foreach (bool condition in conditions)
@@ -979,9 +1392,16 @@ public class DuplicateSpecialToolEditor : EditorWindow
             break;
         }
 
+        GUI.backgroundColor = isEnabled ? AddColor(boxColor) * 1.1f : AddColor(boxColor) * 0.75f;
+        GUILayout.BeginHorizontal(EditorStyles.helpBox);
         GUI.enabled = isEnabled;
+        GUI.contentColor = isEnabled ? AddColor(Color.white) : Color.white;
         value = EditorGUILayout.FloatField(text, value);
+        GUI.contentColor = Color.white;
         GUI.enabled = true;
+        GUILayout.EndHorizontal();
+        GUI.backgroundColor = Color.white;
+
         return value;
     }
 
