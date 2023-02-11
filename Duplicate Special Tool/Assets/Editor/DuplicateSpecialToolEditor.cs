@@ -19,15 +19,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
         Custom = 1
     }
 
-    public enum Case
-    {
-        None = 0,
-        LowerCase = 1,
-        UpperCase = 2,
-        CapitalizedCase = 3,
-        AlternatingCaps = 4,
-    }
-
     public enum GroupUnder
     {
         None = 0,
@@ -35,6 +26,12 @@ public class DuplicateSpecialToolEditor : EditorWindow
         Parent = 2,
         World = 3,
         NewGroup = 4,
+    }
+
+    public enum OffsetPattern
+    {
+        Absolute = 0,
+        Additive = 1
     }
 
     public enum Orientation
@@ -52,7 +49,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         FullCircle = 3
     }
 
-    private readonly string[] transformModes = new string[] { "2D", "3D", "Grid", "Circle", "Random" };
+    private readonly string[] transformModes = new string[] { "2D", "3D", "Grid", "Circle", "Spiral", "Random" };
 
     private static DuplicateSpecialToolEditor window;
     private readonly string boxHeaderColor = "#4b535e";
@@ -75,7 +72,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private int numOfCopies = 1;
     private readonly string numOfCopiesTooltip = "Specify the number of copies to create from the selected GameObject.\n\n" +
                                                  "The range is from 1 to 1000.";
-
+    private bool overridePreviousDuplicates = false;
+    private List<GameObject> duplicatesCache;
     private bool unpackPrefab = false;
     private readonly string unpackPrefabTooltip = "When enabled, it will instantiate clone(s) of the prefab.\n\n" +
                                                       "If you want to preserve the prefab connection to the selected prefab, " +
@@ -142,7 +140,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private GameObject groupParent = null;
     private GameObject groupRelative = null;
     private string newGroupName = "New Group";
-    private string groupUnderName = "";
     private readonly string[] groupUnderTypeTooltips = new string[]
     {
         "Groups the duplicate(s) next to the selected GameObject.",
@@ -166,6 +163,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         "Set the position, rotation, and scale of all duplicate(s) in a 3D space (X,Y,Z).",
         "Arrange all duplicate(s) on a 2D grid (X,Y).",
         "Arrange all duplicate(s) in a circular pattern.",
+        "Arrange all duplicate(s) in a spiral pattern.",
         "Randomly set the position, rotation, and scale of all duplicate(s)."
     };
 
@@ -174,6 +172,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private Vector3 positionProp = Vector3.zero;
     private bool isDefaultPosition;
     private bool linkPosition = false;
+    private OffsetPattern positionOffsetPattern = OffsetPattern.Additive;
     private readonly string positionTooltip = "Specify the number of copies to create from the selected GameObject." +
                                               "The range is from 1 to 1000.";
     private readonly string linkPositionTooltip = "Link the axes to set uniform position values for all axes.\n" +
@@ -188,6 +187,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private Vector3 rotationProp = Vector3.zero;
     private bool isDefaultRotation;
     private bool linkRotation = false;
+    private OffsetPattern rotationOffsetPattern = OffsetPattern.Additive;
     private readonly string rotationTooltip = "Specify the number of copies to create from the selected GameObject." +
                                               "The range is from 1 to 1000.";
     private readonly string linkRotationTooltip = "Link the axes to set uniform rotation values for all axes.\n" +
@@ -195,15 +195,39 @@ public class DuplicateSpecialToolEditor : EditorWindow
                                                   "axis properties.";
     private readonly string resetRotationTooltip = "Reset rotation values to their default values.\n\n" +
                                                    "Default rotation is (X: 0.0, Y: 0.0, Z: 0.0).";
+    #endregion
+
+    #region Scale
+    // Property: Scale (Offset).
+    private Vector3 scaleProp = Vector3.one;
+    private bool isDefaultScale;
+    private bool linkScale = false;
+    private OffsetPattern scaleOffsetPattern = OffsetPattern.Additive;
+    private readonly string scaleTooltip = "Specify the number of copies to create from the selected GameObject." +
+                                           "The range is from 1 to 1000.";
+    private readonly string linkScaleTooltip = "Link the axes to set uniform scale values for all axes.\n" +
+                                               "Unlink the axes to set different scale values for the X, Y, and Z " +
+                                               "axis properties.";
+    private readonly string resetScaleTooltip = "Reset scale values to their default values.\n\n" +
+                                                "Default scale is (X: 1.0, Y: 1.0, Z: 1.0).";
+
+    // Section Fields
+    private bool showTransformSection = false;
+    #endregion
 
     // Grid Mode
 
     // Circle Mode
     private float radialDistance = 0f;
     private bool lookAtCenter = false;
-    private Orientation orientation = Orientation.X;
+    private Orientation circleOrientation = Orientation.X;
     private Circumference circumference = Circumference.FullCircle;
     private readonly string[] circumferenceOptions = new string[] { "Quarter Circle", "Semicircle", "3 Quarter Circle", "Full Circle" };
+
+    // Spiral Mode
+    private float curveAmount = 0f;
+    private bool lookAtSpiralCenter = false;
+    private Orientation spiralOrientation = Orientation.X;
 
     // Random Mode
     private bool randomizePosition = false;
@@ -227,24 +251,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private float absoluteMaxScaleValue = 10f;
     #endregion
 
-    #region Scale
-    // Property: Scale (Offset).
-    private Vector3 scaleProp = Vector3.one;
-    private bool isDefaultScale;
-    private bool linkScale = false;
-    private readonly string scaleTooltip = "Specify the number of copies to create from the selected GameObject." +
-                                           "The range is from 1 to 1000.";
-    private readonly string linkScaleTooltip = "Link the axes to set uniform scale values for all axes.\n" +
-                                               "Unlink the axes to set different scale values for the X, Y, and Z " +
-                                               "axis properties.";
-    private readonly string resetScaleTooltip = "Reset scale values to their default values.\n\n" +
-                                                "Default scale is (X: 1.0, Y: 1.0, Z: 1.0).";
-
-    // Section Fields
-    private bool showTransformSection = false;
-    #endregion
-    #endregion
-
     #region Button(s) Footer
     private readonly string duplicateTooltip = "Duplicate multiple instances of the selected gameObject.";
     private readonly string undoTooltip = "Undo the previous operation. It is the same as clicking on the Edit → Undo menu.";
@@ -262,7 +268,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     [MenuItem("Edit/Duplicate Special %&d", false, 120)]
     public static void DisplayWindow()
     {
-        window = GetWindow<DuplicateSpecialToolEditor>("Duplicate Special");
+        window = GetWindow<DuplicateSpecialToolEditor>("Duplicate Special V1.0");
     }
 
     /// <summary>
@@ -280,6 +286,12 @@ public class DuplicateSpecialToolEditor : EditorWindow
         {
             selectedGameObject = (GameObject)Selection.activeObject;
         }
+
+        // Initialize duplicates cache.
+        if (duplicatesCache == null)
+        {
+            duplicatesCache = new List<GameObject>();
+        }
     }
 
     private void OnGUI()
@@ -287,7 +299,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         // Set minimum window size.
         if (window == null)
         {
-            window = GetWindow<DuplicateSpecialToolEditor>("Duplicate Special");
+            window = GetWindow<DuplicateSpecialToolEditor>("Duplicate Special V1.0");
         }
         scrollPosition = GUILayout.BeginScrollView(scrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar);
 
@@ -338,11 +350,9 @@ public class DuplicateSpecialToolEditor : EditorWindow
         DrawSection("Transform", ref showTransformSection, DisplayTransformSection, transformIconPath, AddColor("#FD6D40") * 0.75f);
         #endregion
 
-        if (EditorGUIUtility.wideMode)
-        {
-            EditorGUIUtility.wideMode = false;
-            EditorGUIUtility.labelWidth = 180;
-        }
+        EditorGUIUtility.wideMode = true;
+        // Toggle wide mode.
+        ToggleWideMode(180f);
 
         #region Button(s) Footer
         GUILayout.FlexibleSpace();
@@ -429,6 +439,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUIContent closeButtonContent = new GUIContent("╳  Close", closeTooltip);
         if (GUILayout.Button(closeButtonContent, footerButtonStyle))
         {
+            // Clear cache.
+            duplicatesCache.Clear();
             // Close editor window.
             Close();
         }
@@ -615,6 +627,27 @@ public class DuplicateSpecialToolEditor : EditorWindow
             }
         }
 
+        // Add duplicates list to the cache.
+        if (overridePreviousDuplicates)
+        {
+            if (duplicatesCache.Count > 0)
+            {
+                // Destroy all duplicates in the cache.
+                foreach (GameObject duplicatedObj in duplicatesCache)
+                {
+                    DestroyImmediate(duplicatedObj);
+                }
+                // Clear cache.
+                duplicatesCache.Clear();
+            }
+        }
+        else
+        {
+            // Clear cache.
+            duplicatesCache.Clear();
+        }
+        duplicatesCache.AddRange(duplicatedObjects);
+
         // Set the names of all duplicates.
         SetNames(duplicatedObjects);
         // Set the position of all duplicates.
@@ -686,8 +719,11 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 newName = GetCustomTemplateName(gameObjectPrefixNum, gameObjectSuffixNum);
             }
 
-            // Set duplicate's name.
-            duplicatedObj.name = newName;
+            if (duplicatedObj != null)
+            {
+                // Set duplicate's name.
+                duplicatedObj.name = newName;
+            }
 
             // Increment index.
             index++;
@@ -712,6 +748,10 @@ public class DuplicateSpecialToolEditor : EditorWindow
         }
         else if (transformMode == 4)
         {
+            DistributeDuplicatesInSpiral(duplicatedObjects);
+        }
+        else if (transformMode == 5)
+        {
             if (randomizePosition)
             {
                 DistributeDuplicatesAtRandom(duplicatedObjects);
@@ -732,7 +772,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// <param name="duplicatedObjects">Duplicated objects.</param>
     private void DistributeDuplicatesLinearly(List<GameObject> duplicatedObjects)
     {
-        int index = 0;
+        int index = 1;
         Vector3 origin = selectedGameObject != null ? selectedGameObject.transform.position : Vector3.zero;
 
         foreach (GameObject duplicatedObj in duplicatedObjects)
@@ -743,7 +783,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
             duplicatedObj.transform.position = position + (positionProp * index);
 
             // Increment index.
-            index++;
+            if (positionOffsetPattern == OffsetPattern.Additive)
+                index++;
         }
     }
 
@@ -760,7 +801,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         // Arrange each duplicate around the center.
         foreach (GameObject duplicatedObj in duplicatedObjects)
         {
-            duplicatedObj.transform.position = GetRadialVector(centerPoint, radialDistance, angleQuotient * index);
+            duplicatedObj.transform.position = GetRadialVector(circleOrientation, centerPoint, radialDistance, angleQuotient * index);
             if (lookAtCenter)
             {
                 duplicatedObj.transform.LookAt(centerPoint);
@@ -792,6 +833,29 @@ public class DuplicateSpecialToolEditor : EditorWindow
         }
 
         return arcLength;
+    }
+
+    /// <summary>
+    /// Distribute all duplicate(s) around a spiral.
+    /// </summary>
+    private void DistributeDuplicatesInSpiral(List<GameObject> duplicatedObjects)
+    {
+        int index = 1;
+        Vector3 origin = selectedGameObject != null ? selectedGameObject.transform.position : Vector3.zero;
+
+        foreach (GameObject duplicatedObj in duplicatedObjects)
+        {
+            Vector3 position = origin;
+            float distanceFromCenter = Vector3.Distance(origin, duplicatedObj.transform.position);
+            duplicatedObj.transform.position = GetRadialVector(spiralOrientation, origin, index * 0.1f, curveAmount * 0.5f * index);
+            if (lookAtSpiralCenter)
+            {
+                duplicatedObj.transform.LookAt(origin);
+            }
+
+            // Increment index.
+            index++;
+        }
     }
 
     private void DistributeDuplicatesAtRandom(List<GameObject> duplicatedObjects)
@@ -831,11 +895,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         {
             RotateDuplicatesLinearly(duplicatedObjects);
         }
-        else if (transformMode == 3)
-        {
-            //DistributeDuplicatesInCircle(duplicatedObjects);
-        }
-        else if (transformMode == 4)
+        else if (transformMode == 5)
         {
             if (randomizeRotation)
             {
@@ -856,8 +916,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// </summary>
     private void RotateDuplicatesLinearly(List<GameObject> duplicatedObjects)
     {
-        int index = 0;
-
+        int index = rotationOffsetPattern == OffsetPattern.Absolute ? 1 : 0;
         foreach (GameObject duplicatedObj in duplicatedObjects)
         {
             Vector3 rotation = rotationProp;
@@ -866,7 +925,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
             duplicatedObj.transform.eulerAngles = rotation * index;
 
             // Increment index.
-            index++;
+            if (rotationOffsetPattern == OffsetPattern.Additive)
+                index++;
         }
     }
 
@@ -900,11 +960,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         {
             ScaleDuplicatesLinearly(duplicatedObjects);
         }
-        else if (transformMode == 3)
-        {
-            //DistributeDuplicatesInCircle(duplicatedObjects);
-        }
-        else if (transformMode == 4)
+        else if (transformMode == 5)
         {
             if (randomizeScale)
             {
@@ -925,17 +981,18 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// </summary>
     private void ScaleDuplicatesLinearly(List<GameObject> duplicatedObjects)
     {
-        int index = 0;
+        int index = scaleOffsetPattern == OffsetPattern.Absolute ? 1 : 0;
 
         foreach (GameObject duplicatedObj in duplicatedObjects)
         {
-            Vector3 rotation = rotationProp;
-            rotation.z = transformMode == 0 ? 0f : rotation.z;
+            Vector3 scale = scaleProp;
+            scale.z = transformMode == 0 ? 0f : scale.z;
 
-            duplicatedObj.transform.eulerAngles = rotation * index;
+            duplicatedObj.transform.localScale = scale * index;
 
             // Increment index.
-            index++;
+            if (scaleOffsetPattern == OffsetPattern.Additive)
+                index++;
         }
     }
 
@@ -964,11 +1021,12 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// <summary>
     /// Converts an angle to a position around the center.
     /// </summary>
+    /// <param name="orientation">Orientation.</param>
     /// <param name="center">Center.</param>
     /// <param name="radius">Radius.</param>
     /// <param name="angle"><Angle (in degrees)./param>
     /// <returns>The position around the radius.</returns>
-    public Vector3 GetRadialVector(Vector3 center, float radius, float angle)
+    public Vector3 GetRadialVector(Orientation orientation, Vector3 center, float radius, float angle)
     {
         Vector3 pos;
         angle -= 90f;
@@ -1025,6 +1083,14 @@ public class DuplicateSpecialToolEditor : EditorWindow
         EditorGUILayout.EndHorizontal();
         #endregion
 
+        #region Override Previous Duplicate(s)?
+        EditorGUILayout.BeginHorizontal();
+        DrawBulletPoint("#00E6BC");
+        GUIContent overrideContent = new GUIContent("Override Previous Duplicate(s)?", "");
+        overridePreviousDuplicates = EditorGUILayout.Toggle(overrideContent, overridePreviousDuplicates);
+        EditorGUILayout.EndHorizontal();
+        #endregion
+
         #region Unpack Prefab(s)?
         GUI.enabled = isPrefab;
         EditorGUILayout.BeginHorizontal();
@@ -1042,7 +1108,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
     protected void DisplayNamingConventionsSection()
     {
         var namingMethods = new string[] { "Numbers", "Custom" };
-        var letterCases = new string[] { "Lowercase", "Uppercase"};
         GUIContent namingMethodContent = new GUIContent("Naming Method:", "");
         GUI.backgroundColor = AddColor("#00BEFF");
         namingMethodType = (NamingMethod)EditorGUILayout.Popup(namingMethodContent, (int)namingMethodType, namingMethods);
@@ -1135,13 +1200,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
                     GUIContent replacementNameContent = new GUIContent("Replace with:", "");
                     replacementName = EditorGUILayout.TextField(replacementNameContent, replacementName);
                     EditorGUILayout.EndHorizontal();
-                    #endregion
-                    #region Case
-                    //EditorGUILayout.BeginHorizontal();
-                    //GUIContent caseContent2 = new GUIContent("Case:", "");
-                    //DrawBulletPoint("#00BEFF", 1);
-                    //lettercase = (Case)EditorGUILayout.EnumPopup(caseContent2, lettercase);
-                    //EditorGUILayout.EndHorizontal();
                     #endregion
                 }
                 #endregion
@@ -1422,12 +1480,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
         GUILayout.BeginVertical(EditorStyles.helpBox);
 
-        if (!EditorGUIUtility.wideMode)
-        {
-            EditorGUIUtility.wideMode = true;
-            EditorGUIUtility.labelWidth = 12;
-            EditorGUIUtility.fieldWidth = 72;
-        }
+        // Toggle wide mode.
+        ToggleWideMode(12f);
 
         // Transform Mode(s): 2D/3D
         if (transformMode == 0 || transformMode == 1)
@@ -1471,9 +1525,20 @@ public class DuplicateSpecialToolEditor : EditorWindow
             GUI.enabled = true;
             GUI.backgroundColor = Color.white;
             GUILayout.EndHorizontal();
+
+            // Toggle wide mode.
+            ToggleWideMode(114f);
+
+            GUILayout.BeginHorizontal();
+            DrawBulletPoint("#FD6D40", 1);
+            positionOffsetPattern = (OffsetPattern)EditorGUILayout.EnumPopup("Offset Method:", positionOffsetPattern);
+            GUILayout.EndHorizontal();
             #endregion
 
             #region Rotate
+            // Toggle wide mode.
+            ToggleWideMode(12f);
+
             GUILayout.BeginHorizontal();
             DrawBulletPoint("#FD6D40");
             Texture2D linkRotationIcon = linkRotation ? linkOnIcon : linkOffIcon;
@@ -1506,9 +1571,20 @@ public class DuplicateSpecialToolEditor : EditorWindow
             GUI.enabled = true;
             GUI.backgroundColor = Color.white;
             GUILayout.EndHorizontal();
+
+            // Toggle wide mode.
+            ToggleWideMode(114f);
+
+            GUILayout.BeginHorizontal();
+            DrawBulletPoint("#FD6D40", 1);
+            rotationOffsetPattern = (OffsetPattern)EditorGUILayout.EnumPopup("Offset Method:", rotationOffsetPattern);
+            GUILayout.EndHorizontal();
             #endregion
 
             #region Scale
+            // Toggle wide mode.
+            ToggleWideMode(12f);
+
             GUILayout.BeginHorizontal();
             DrawBulletPoint("#FD6D40");
             Texture2D linkScaleIcon = linkScale ? linkOnIcon : linkOffIcon;
@@ -1541,15 +1617,21 @@ public class DuplicateSpecialToolEditor : EditorWindow
             GUI.enabled = true;
             GUI.backgroundColor = Color.white;
             GUILayout.EndHorizontal();
+
+            // Toggle wide mode.
+            ToggleWideMode(114f);
+
+            GUILayout.BeginHorizontal();
+            DrawBulletPoint("#FD6D40", 1);
+            scaleOffsetPattern = (OffsetPattern)EditorGUILayout.EnumPopup("Offset Method:", scaleOffsetPattern);
+            GUILayout.EndHorizontal();
             #endregion
         }
+        // Circle
         else if (transformMode == 3)
         {
-            if (EditorGUIUtility.wideMode)
-            {
-                EditorGUIUtility.wideMode = false;
-                EditorGUIUtility.labelWidth = 180;
-            }
+            // Toggle wide mode.
+            ToggleWideMode(180f);
 
             #region Radius
             GUILayout.BeginHorizontal();
@@ -1559,10 +1641,10 @@ public class DuplicateSpecialToolEditor : EditorWindow
             GUILayout.EndHorizontal();
             #endregion
 
-            #region Area
+            #region Circumference
             GUILayout.BeginHorizontal();
             DrawBulletPoint("#FD6D40");
-            GUIContent areaContent = new GUIContent("Area:", "");
+            GUIContent areaContent = new GUIContent("Circumference:", "");
             circumference = (Circumference)EditorGUILayout.Popup(areaContent, (int)circumference, circumferenceOptions);
             GUILayout.EndHorizontal();
             #endregion
@@ -1571,7 +1653,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             GUILayout.BeginHorizontal();
             DrawBulletPoint("#FD6D40");
             GUIContent orientationContent = new GUIContent("Orientation:", "");
-            orientation = (Orientation)EditorGUILayout.EnumPopup(orientationContent, orientation);
+            circleOrientation = (Orientation)EditorGUILayout.EnumPopup(orientationContent, circleOrientation);
             GUILayout.EndHorizontal();
             #endregion
 
@@ -1583,15 +1665,43 @@ public class DuplicateSpecialToolEditor : EditorWindow
             GUILayout.EndHorizontal();
             #endregion
         }
+        // Spiral
         else if (transformMode == 4)
+        {
+            // Toggle wide mode.
+            ToggleWideMode(180f);
+
+            #region Curve Amount
+            GUILayout.BeginHorizontal();
+            DrawBulletPoint("#FD6D40");
+            GUIContent curveAmountContent = new GUIContent("Curve Amount:", "");
+            curveAmount = EditorGUILayout.Slider(curveAmountContent, curveAmount, 0f, 100f);
+            GUILayout.EndHorizontal();
+            #endregion
+
+            #region Orientation
+            GUILayout.BeginHorizontal();
+            DrawBulletPoint("#FD6D40");
+            GUIContent spiralOrientationContent = new GUIContent("Orientation:", "");
+            spiralOrientation = (Orientation)EditorGUILayout.EnumPopup(spiralOrientationContent, spiralOrientation);
+            GUILayout.EndHorizontal();
+            #endregion
+
+            #region Look At Center?
+            GUILayout.BeginHorizontal();
+            DrawBulletPoint("#FD6D40");
+            GUIContent lookAtSpiralCenterContent = new GUIContent("Look At Center?", "");
+            lookAtSpiralCenter = EditorGUILayout.Toggle(lookAtSpiralCenterContent, lookAtSpiralCenter);
+            GUILayout.EndHorizontal();
+            #endregion
+        }
+        // Random
+        else if (transformMode == 5)
         {
             GUILayout.Space(12);
 
-            if (EditorGUIUtility.wideMode)
-            {
-                EditorGUIUtility.wideMode = false;
-                EditorGUIUtility.labelWidth = 180;
-            }
+            // Toggle wide mode.
+            ToggleWideMode(180f);
 
             #region Randomize Position?
             GUIContent randomizePositionContent = new GUIContent("Randomize Position?", "");
@@ -1916,6 +2026,18 @@ public class DuplicateSpecialToolEditor : EditorWindow
     #endregion
 
     #region Miscellaneous
+    /// <summary>
+    /// Toggle wide mode for the Editor GUI.
+    /// </summary>
+    /// <param name="nonWideModeWidth">Minimum width (in pixels) for all labels.</param>
+    private void ToggleWideMode(float labelWidth)
+    {
+        EditorGUIUtility.wideMode = !EditorGUIUtility.wideMode;
+
+        // Set the minimum width (in pixels) for all fields.
+        EditorGUIUtility.fieldWidth = 72;
+        EditorGUIUtility.labelWidth = labelWidth;
+    }
 
     /// <summary>
     /// Get color from hex string.
