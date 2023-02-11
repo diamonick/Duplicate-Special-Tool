@@ -350,19 +350,25 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
         DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
 
+        #region Other
+        // Expand All Sections
         if (GUILayout.Button("Expand All Sections"))
         {
-
+            ExpandAllSections();
         }
+        // Collapse All Sections
         if (GUILayout.Button("Collapse All Sections"))
         {
-
+            CollapseAllSections();
         }
+        // Documentation
         if (GUILayout.Button("Documentation"))
         {
 
         }
+        #endregion
 
+        #region Information
         // Display Duplicate Special information.
         string objectName = selectedGameObject != null ? selectedGameObject.name : "N/A";
         if (namingMethodType == NamingMethod.Numbers)
@@ -389,11 +395,9 @@ public class DuplicateSpecialToolEditor : EditorWindow
             GUI.contentColor = Color.white;
             GUI.backgroundColor = Color.white;
         }
+        #endregion
 
         DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
-
-        //This is the important bit, we set the width to the calculated width of the content in the GUIStyle of the control
-        //EditorGUILayout.LabelField(label, GUILayout.Width(GUI.skin.label.CalcSize(label).x));
 
         GUILayout.BeginHorizontal();
         GUI.enabled = selectedGameObject != null;
@@ -1720,6 +1724,30 @@ public class DuplicateSpecialToolEditor : EditorWindow
         }
         GUILayout.EndVertical();
     }
+
+    #region Other
+    /// <summary>
+    /// Expand all sections in the editor window.
+    /// </summary>
+    private void ExpandAllSections()
+    {
+        showNumberOfCopiesSection = true;
+        showNamingConventionsSection = true;
+        showGroupUnderSection = true;
+        showTransformSection = true;
+    }
+
+    /// <summary>
+    /// Collapse all sections in the editor window.
+    /// </summary>
+    private void CollapseAllSections()
+    {
+        showNumberOfCopiesSection = false;
+        showNamingConventionsSection = false;
+        showGroupUnderSection = false;
+        showTransformSection = false;
+    }
+    #endregion
     #endregion
 
     #region Draw Window Element Method(s)
