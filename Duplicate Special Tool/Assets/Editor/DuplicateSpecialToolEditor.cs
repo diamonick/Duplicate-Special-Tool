@@ -7,6 +7,7 @@ using UnityEditor;
 
 public class DuplicateSpecialToolEditor : EditorWindow
 {
+    #region Enums
     public enum TransformMode
     {
         TwoDimensional = 0,
@@ -28,12 +29,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
         NewGroup = 4,
     }
 
-    public enum OffsetPattern
-    {
-        Absolute = 0,
-        Additive = 1
-    }
-
     public enum Orientation
     {
         X = 0,
@@ -41,15 +36,14 @@ public class DuplicateSpecialToolEditor : EditorWindow
         Z = 2
     }
 
-    public enum Circumference
+    public enum DegreeMeasure
     {
         QuarterCircle = 0,
         SemiCircle = 1,
         ThreeQuarterCircle = 2,
         FullCircle = 3
     }
-
-    private readonly string[] transformModes = new string[] { "2D", "3D", "Grid", "Circle", "Spiral", "Random" };
+    #endregion
 
     private static DuplicateSpecialToolEditor window;
     private readonly string boxHeaderColor = "#4b535e";
@@ -70,14 +64,17 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
     // Property: Number of copies.
     private int numOfCopies = 1;
-    private readonly string numOfCopiesTooltip = "Specify the number of copies to create from the selected GameObject.\n\n" +
-                                                 "The range is from 1 to 1000.";
     private bool overridePreviousDuplicates = false;
     private List<GameObject> duplicatesCache;
     private bool unpackPrefab = false;
-    private readonly string unpackPrefabTooltip = "When enabled, it will instantiate clone(s) of the prefab.\n\n" +
-                                                      "If you want to preserve the prefab connection to the selected prefab, " +
-                                                      "uncheck this checkbox.";
+    private readonly string selectedGameObjectTooltip = "The selected GameObject to duplicate.";
+    private readonly string numOfCopiesTooltip = "Specify the number of copies to create from the selected GameObject.\n\n" +
+                                                 "The range is from 1 to 1000.";
+    private readonly string overrideDuplicatesTooltip = "When enabled, it erases the previous set of duplicates upon clicking " +
+                                                        "the [Duplicate] button.";
+    private readonly string unpackPrefabTooltip = "When enabled, it will instantiate clone(s) of the prefab. If you want to " +
+                                                  "preserve the prefab connection to the selected prefab, uncheck this checkbox.\n\n" +
+                                                  "Note: This option is disabled if the selected GameObject is not a prefab.";
     private bool isPrefab = false;
 
     // Section Fields
@@ -89,7 +86,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private NamingMethod namingMethodType = NamingMethod.Numbers;
     private readonly string[] namingMethodTooltips = new string[]
     {
-        "Set duplicate(s)' names via numerating through each duplicate.",
+        "Format names for new GameObject(s) via numerating through each duplicate.",
         "Customize how duplicate(s) should be named via prefixes, suffixes, numerations, etc."
     };
     private int numOfLeadingDigits = 0;
@@ -103,7 +100,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private bool addBraces = false;
     private bool addUnderscore = false;
     private bool addHyphen = false;
-
 
     // Custom Settings
     private bool replaceFullName = false;
@@ -131,9 +127,26 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private bool addUnderscoreSuffix = false;
     private bool addHyphenSuffix = false;
 
+    private string renameFullNameTooltip = "Enable this to set a new name for all duplicates.";
+    private string replaceInNameTooltip = "The selected GameObject's name to replace.";
+    private string replaceWithTooltip = "Type in a word to set a new name for all duplicates.";
+    private string numOfLeadingDigitsPrefixTooltip = "Specify the number of leading digits to add before each duplicate’s name.\n\n" +
+                                                     "The range is from 0 to 10.";
+    private string countFromTooltip = "Specify the starting number to count from.\n\n" +
+                                      "The range is from 0 to 100.";
+    private string incrementByTooltip = "Specify the number to increment by.\n\n" +
+                                        "The range is from 0 to 10.";
+    private string prefixTooltip = "Type in a word to add in front of each duplicate’s name.";
+    private string numeratePrefixTooltip = "";
+    private string addPrefixSpaceTooltip = "Enable this to add a space between the name and the number (prefix).";
+    private string numOfLeadingDigitsSuffixTooltip = "Specify the number of leading digits to add after each duplicate’s name.\n\n" +
+                                                     "The range is from 0 to 10.";
+    private string suffixTooltip = "Type in a word to add behind each duplicate’s name.";
+    private string numerateSuffixTooltip = "";
+    private string addSuffixSpaceTooltip = "Enable this to add a space between the name and the number (suffix).";
+
     // Section Fields
     private bool showNamingConventionsSection = false;
-    private string duplicatedObjectName = "";
     #endregion
 
     #region Group Under
@@ -148,6 +161,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
         "Groups the duplicate(s) in the world.",
         "Creates a new group GameObject to group the duplicate(s) under."
     };
+    private readonly string groupUnderTooltip = "The GameObject to group all duplicates under.";
+    private readonly string groupThisUnderTooltip = "The GameObject to group the new group of duplicates under.";
 
     // Section Fields
     private bool showGroupUnderSection = false;
@@ -156,7 +171,9 @@ public class DuplicateSpecialToolEditor : EditorWindow
     #endregion
 
     #region Transform
+    private bool showTransformSection = false;
     private int transformMode;
+    private readonly string[] transformModes = new string[] { "2D", "3D", "Grid", "Circle", "Spiral", "Random" };
     private readonly string[] transformModeTooltips = new string[]
     {
         "Set the position, rotation, and scale of all duplicate(s) in a 2D space (X,Y).",
@@ -167,69 +184,73 @@ public class DuplicateSpecialToolEditor : EditorWindow
         "Randomly set the position, rotation, and scale of all duplicate(s)."
     };
 
-    #region Position
-    // Property: Translate (Offset).
+    #region 2D/3D Modes
+    #region Translate (Offset)
     private Vector3 positionProp = Vector3.zero;
     private bool isDefaultPosition;
     private bool linkPosition = false;
-    private OffsetPattern positionOffsetPattern = OffsetPattern.Additive;
-    private readonly string positionTooltip = "Specify the number of copies to create from the selected GameObject." +
-                                              "The range is from 1 to 1000.";
+    private readonly string positionTooltip = "Move duplicate(s) in the desired direction at a given distance.";
     private readonly string linkPositionTooltip = "Link the axes to set uniform position values for all axes.\n" +
                                                   "Unlink the axes to set different position values for the X, Y, and Z " +
                                                   "axis properties.";
-    private readonly string resetPositionTooltip = "Reset postion values to their default values.\n\n" +
+    private readonly string resetPositionTooltip = "Reset position values to their default values.\n\n" +
                                                    "Default position is (X: 0.0, Y: 0.0, Z: 0.0).";
     #endregion
-
-    #region Rotation
-    // Property: Rotate (Offset).
+    #region Rotate (Offset)
     private Vector3 rotationProp = Vector3.zero;
     private bool isDefaultRotation;
     private bool linkRotation = false;
-    private OffsetPattern rotationOffsetPattern = OffsetPattern.Additive;
-    private readonly string rotationTooltip = "Specify the number of copies to create from the selected GameObject." +
-                                              "The range is from 1 to 1000.";
+    private readonly string rotationTooltip = "Rotate duplicate(s) around a given axis/axes.";
     private readonly string linkRotationTooltip = "Link the axes to set uniform rotation values for all axes.\n" +
                                                   "Unlink the axes to set different rotation values for the X, Y, and Z " +
                                                   "axis properties.";
     private readonly string resetRotationTooltip = "Reset rotation values to their default values.\n\n" +
                                                    "Default rotation is (X: 0.0, Y: 0.0, Z: 0.0).";
     #endregion
-
-    #region Scale
-    // Property: Scale (Offset).
+    #region Scale (Offset)
     private Vector3 scaleProp = Vector3.one;
     private bool isDefaultScale;
     private bool linkScale = false;
-    private OffsetPattern scaleOffsetPattern = OffsetPattern.Additive;
-    private readonly string scaleTooltip = "Specify the number of copies to create from the selected GameObject." +
-                                           "The range is from 1 to 1000.";
+    private readonly string scaleTooltip = "Scale duplicate(s) on a given axis/axes. ";
     private readonly string linkScaleTooltip = "Link the axes to set uniform scale values for all axes.\n" +
                                                "Unlink the axes to set different scale values for the X, Y, and Z " +
                                                "axis properties.";
     private readonly string resetScaleTooltip = "Reset scale values to their default values.\n\n" +
                                                 "Default scale is (X: 1.0, Y: 1.0, Z: 1.0).";
-
-    // Section Fields
-    private bool showTransformSection = false;
+    #endregion
     #endregion
 
     // Grid Mode
 
-    // Circle Mode
+    #region Circle Mode
     private float radialDistance = 0f;
     private bool lookAtCenter = false;
     private Orientation circleOrientation = Orientation.X;
-    private Circumference circumference = Circumference.FullCircle;
-    private readonly string[] circumferenceOptions = new string[] { "Quarter Circle", "Semicircle", "3 Quarter Circle", "Full Circle" };
+    private DegreeMeasure degreeMeasure = DegreeMeasure.FullCircle;
+    private readonly string[] degreeMeasureOptions = new string[]
+    {
+        "Quarter Circle (90°)",
+        "Semicircle (180°)",
+        "Three Quarter Circle (270°)",
+        "Full Circle (360°)"
+    };
+    private readonly string radiusTooltip = "Specify the length of the circular pattern.";
+    private readonly string degreeMeasureTooltip = "Specify the degree measure of the circular pattern.";
+    private readonly string circleOrientationTooltip = "Specify how the circular group of duplicates is aligned on a given axis.";
+    private readonly string lookAtCenterTooltip = "When enabled, all duplicates will look at the center of the circular pattern.";
+    #endregion
 
-    // Spiral Mode
+    #region Spiral Mode
     private float curveAmount = 0f;
     private bool lookAtSpiralCenter = false;
     private Orientation spiralOrientation = Orientation.X;
+    private readonly string curveAmountTooltip = "Specify the curve amount of the spiral pattern.";
+    private readonly string spiralOrientationTooltip = "Specify how the spiral group of duplicates is aligned on a given axis.";
+    private readonly string lookAtSpiralCenterTooltip = "When enabled, all duplicates will look at the center of the spiral pattern.";
+    #endregion
 
-    // Random Mode
+    #region Random Mode
+    #region Randomize Position?
     private bool randomizePosition = false;
     private float minDistance = 0f;
     private float maxDistance = 100f;
@@ -237,11 +258,27 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private bool lockPositionY = false;
     private bool lockPositionZ = false;
 
+    private readonly string randomizePositionTooltip = "Enable this to allow randomizing the position of all duplicates.";
+    private readonly string distanceRangeTooltip = "Specify the minimum and maximum distance duplicates are spawned away from the selected GameObject.\n\n" +
+                                                    "The range is from 0 to 1000.";
+    private readonly string lockPositionXTooltip = "When enabled, it locks each duplicate’s X-position value, and it’s unaffected by randomization.";
+    private readonly string lockPositionYTooltip = "When enabled, it locks each duplicate’s Y-position value, and it’s unaffected by randomization.";
+    private readonly string lockPositionZTooltip = "When enabled, it locks each duplicate’s Z-position value, and it’s unaffected by randomization.";
+    #endregion
+
+    #region Randomize Rotation?
     private bool randomizeRotation = false;
     private bool lockPitch = false;
     private bool lockYaw = false;
     private bool lockRoll = false;
 
+    private readonly string randomizeRotationTooltip = "Enable this to allow randomizing the rotation of all duplicates.";
+    private readonly string lockRotationXTooltip = "When enabled, it locks each duplicate’s X-rotation value, and it’s unaffected by randomization.";
+    private readonly string lockRotationYTooltip = "When enabled, it locks each duplicate’s Y-rotation value, and it’s unaffected by randomization.";
+    private readonly string lockRotationZTooltip = "When enabled, it locks each duplicate’s Z-rotation value, and it’s unaffected by randomization.";
+    #endregion
+
+    #region Randomize Scale?
     private bool randomizeScale = false;
     private float minScale = 0f;
     private float maxScale = 10f;
@@ -249,6 +286,22 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private bool lockScaleY = false;
     private bool lockScaleZ = false;
     private float absoluteMaxScaleValue = 10f;
+
+    private readonly string randomizeScaleTooltip = "Enable this to allow randomizing the scale of all duplicates.";
+    private readonly string scaleRangeTooltip = "Specify the minimum and maximum scale of all duplicates.\n\n" +
+                                                "The range is from 0 to 10.";
+    private readonly string lockScaleXTooltip = "When enabled, it locks each duplicate’s X-scale value, and it’s unaffected by randomization.";
+    private readonly string lockScaleYTooltip = "When enabled, it locks each duplicate’s Y-scale value, and it’s unaffected by randomization.";
+    private readonly string lockScaleZTooltip = "When enabled, it locks each duplicate’s Z-scale value, and it’s unaffected by randomization.";
+    #endregion
+    #endregion
+    #endregion
+
+    #region Information
+    private readonly string expandSectionsTooltip = "Click this button to expand all sections and show its contents.";
+    private readonly string collapseSectionsTooltip = "Click this button to collapse all sections and hide its contents.";
+    private readonly string documentationTooltip = "Click this button to see the official documentation on how to use " +
+                                                   "the Duplicate Special Tool.";
     #endregion
 
     #region Button(s) Footer
@@ -329,7 +382,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
 
         #region Number of Copies
-        DrawSection("No. of Copies", ref showNumberOfCopiesSection, DisplayNumberOfCopiesSection, numberOfCopiesIconPath, AddColor("#00E6BC") * 0.75f);
+        DrawSection("Number of Copies", ref showNumberOfCopiesSection, DisplayNumberOfCopiesSection, numberOfCopiesIconPath, AddColor("#00E6BC") * 0.75f);
         #endregion
 
         DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
@@ -362,19 +415,22 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
         #region Other
         // Expand All Sections
-        if (GUILayout.Button("Expand All Sections"))
+        GUIContent expandSectionsContent = new GUIContent("Expand All Sections", expandSectionsTooltip);
+        if (GUILayout.Button(expandSectionsContent))
         {
             ExpandAllSections();
         }
         // Collapse All Sections
-        if (GUILayout.Button("Collapse All Sections"))
+        GUIContent collapseSectionsContent = new GUIContent("Collapse All Sections", collapseSectionsTooltip);
+        if (GUILayout.Button(collapseSectionsContent))
         {
             CollapseAllSections();
         }
         // Documentation
-        if (GUILayout.Button("Documentation"))
+        GUIContent documentationContent = new GUIContent("Documentation", documentationTooltip);
+        if (GUILayout.Button(documentationContent))
         {
-
+            OpenDocumentation();
         }
         #endregion
 
@@ -579,6 +635,28 @@ public class DuplicateSpecialToolEditor : EditorWindow
             return;
 
         List<GameObject> duplicatedObjects = new List<GameObject>();
+
+        // Destroy all duplicates in the cache if the Override Previous Duplicates option is checked.
+        if (overridePreviousDuplicates)
+        {
+            if (duplicatesCache.Count > 0)
+            {
+                // Destroy all duplicates in the cache.
+                foreach (GameObject duplicatedObj in duplicatesCache)
+                {
+                    DestroyImmediate(duplicatedObj);
+                }
+                // Clear cache.
+                duplicatesCache.Clear();
+            }
+        }
+        // Otherwise, just clear the cache.
+        else
+        {
+            // Clear cache.
+            duplicatesCache.Clear();
+        }
+
         if (isPrefab && !unpackPrefab)
         {
             for (int i = 0; i < numOfCopies; i++)
@@ -628,24 +706,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
         }
 
         // Add duplicates list to the cache.
-        if (overridePreviousDuplicates)
-        {
-            if (duplicatesCache.Count > 0)
-            {
-                // Destroy all duplicates in the cache.
-                foreach (GameObject duplicatedObj in duplicatesCache)
-                {
-                    DestroyImmediate(duplicatedObj);
-                }
-                // Clear cache.
-                duplicatesCache.Clear();
-            }
-        }
-        else
-        {
-            // Clear cache.
-            duplicatesCache.Clear();
-        }
         duplicatesCache.AddRange(duplicatedObjects);
 
         // Set the names of all duplicates.
@@ -778,13 +838,11 @@ public class DuplicateSpecialToolEditor : EditorWindow
         foreach (GameObject duplicatedObj in duplicatedObjects)
         {
             Vector3 position = origin;
-            position.z = transformMode == 0 ? 0f : position.z;
 
             duplicatedObj.transform.position = position + (positionProp * index);
 
             // Increment index.
-            if (positionOffsetPattern == OffsetPattern.Additive)
-                index++;
+            index++;
         }
     }
 
@@ -795,8 +853,9 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private void DistributeDuplicatesInCircle(List<GameObject> duplicatedObjects)
     {
         int index = 0;
+        int countOffset = degreeMeasure == DegreeMeasure.FullCircle ? 0 : 1;
         Vector3 centerPoint = selectedGameObject != null ? selectedGameObject.transform.position : Vector3.zero;
-        float angleQuotient = duplicatedObjects.Count > 1 ? GetArcLength() / (duplicatedObjects.Count - 1) : 0f;
+        float angleQuotient = duplicatedObjects.Count > 1 ? GetDegreeMeasure() / (duplicatedObjects.Count - countOffset) : 0f;
 
         // Arrange each duplicate around the center.
         foreach (GameObject duplicatedObj in duplicatedObjects)
@@ -812,22 +871,22 @@ public class DuplicateSpecialToolEditor : EditorWindow
         }
     }
 
-    private float GetArcLength()
+    private float GetDegreeMeasure()
     {
         float arcLength = 0f;
 
-        switch (circumference)
+        switch (degreeMeasure)
         {
-            case Circumference.QuarterCircle:
+            case DegreeMeasure.QuarterCircle:
                 arcLength = 90f;
                 break;
-            case Circumference.SemiCircle:
+            case DegreeMeasure.SemiCircle:
                 arcLength = 180f;
                 break;
-            case Circumference.ThreeQuarterCircle:
+            case DegreeMeasure.ThreeQuarterCircle:
                 arcLength = 270f;
                 break;
-            case Circumference.FullCircle:
+            case DegreeMeasure.FullCircle:
                 arcLength = 360f;
                 break;
         }
@@ -916,7 +975,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// </summary>
     private void RotateDuplicatesLinearly(List<GameObject> duplicatedObjects)
     {
-        int index = rotationOffsetPattern == OffsetPattern.Absolute ? 1 : 0;
+        int index = 1;
         foreach (GameObject duplicatedObj in duplicatedObjects)
         {
             Vector3 rotation = rotationProp;
@@ -925,8 +984,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             duplicatedObj.transform.eulerAngles = rotation * index;
 
             // Increment index.
-            if (rotationOffsetPattern == OffsetPattern.Additive)
-                index++;
+            index++;
         }
     }
 
@@ -981,18 +1039,17 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// </summary>
     private void ScaleDuplicatesLinearly(List<GameObject> duplicatedObjects)
     {
-        int index = scaleOffsetPattern == OffsetPattern.Absolute ? 1 : 0;
+        int index = 1;
 
         foreach (GameObject duplicatedObj in duplicatedObjects)
         {
             Vector3 scale = scaleProp;
-            scale.z = transformMode == 0 ? 0f : scale.z;
+            scale.z = transformMode == 0 ? 1f : scale.z;
 
             duplicatedObj.transform.localScale = scale * index;
 
             // Increment index.
-            if (scaleOffsetPattern == OffsetPattern.Additive)
-                index++;
+            index++;
         }
     }
 
@@ -1060,7 +1117,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     protected void DisplayNumberOfCopiesSection()
     {
         isPrefab = PrefabUtility.GetPrefabInstanceHandle(selectedGameObject) != null;
-        GUIContent selectedGameObjectContent = new GUIContent("Selected GameObject:", "The selected gameObject.");
+        GUIContent selectedGameObjectContent = new GUIContent("Selected GameObject:", selectedGameObjectTooltip);
         selectedGameObject = (GameObject)EditorGUILayout.ObjectField(selectedGameObjectContent, selectedGameObject, typeof(GameObject), true);
         GUI.enabled = true;
         GUI.contentColor = Color.white;
@@ -1086,7 +1143,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         #region Override Previous Duplicate(s)?
         EditorGUILayout.BeginHorizontal();
         DrawBulletPoint("#00E6BC");
-        GUIContent overrideContent = new GUIContent("Override Previous Duplicate(s)?", "");
+        GUIContent overrideContent = new GUIContent("Override Previous Duplicate(s)?", overrideDuplicatesTooltip);
         overridePreviousDuplicates = EditorGUILayout.Toggle(overrideContent, overridePreviousDuplicates);
         EditorGUILayout.EndHorizontal();
         #endregion
@@ -1121,7 +1178,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             case NamingMethod.Numbers:
                 #region Number of Leading Digits
                 EditorGUILayout.BeginHorizontal();
-                GUIContent numOfLeadingDigitsContent = new GUIContent("Number of leading digits:", "");
+                GUIContent numOfLeadingDigitsContent = new GUIContent("Number of leading digits:", numerateSuffixTooltip);
                 DrawBulletPoint("#00BEFF");
                 numOfLeadingDigits = EditorGUILayout.IntSlider(numOfLeadingDigitsContent, numOfLeadingDigits, 0, 10);
                 if (GUILayout.Button("-"))
@@ -1137,7 +1194,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 #region Count From
                 EditorGUILayout.BeginHorizontal();
                 DrawBulletPoint("#00BEFF");
-                GUIContent countFromContent = new GUIContent("Count from:", "");
+                GUIContent countFromContent = new GUIContent("Count from:", countFromTooltip);
                 countFromNumbers = EditorGUILayout.IntSlider(countFromContent, countFromNumbers, 0, countFromAmount);
                 if (GUILayout.Button("-"))
                 {
@@ -1152,7 +1209,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 #region Increment By
                 EditorGUILayout.BeginHorizontal();
                 DrawBulletPoint("#00BEFF");
-                GUIContent incrementByContent = new GUIContent("Increment by:", "");
+                GUIContent incrementByContent = new GUIContent("Increment by:", incrementByTooltip);
                 incrementByNumbers = EditorGUILayout.IntSlider(incrementByContent, incrementByNumbers, 1, incrementalAmount);
                 if (GUILayout.Button("-"))
                 {
@@ -1166,7 +1223,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
                 #region Add Space?
                 EditorGUILayout.BeginHorizontal();
-                GUIContent addSpaceContent = new GUIContent("Add Space?", "");
+                GUIContent addSpaceContent = new GUIContent("Add Space?", addSuffixSpaceTooltip);
                 DrawBulletPoint("#00BEFF");
                 addSpace = EditorGUILayout.Toggle(addSpaceContent, addSpace);
                 EditorGUILayout.EndHorizontal();
@@ -1180,7 +1237,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 break;
             case NamingMethod.Custom:
                 #region Replace Full Name?
-                GUIContent replaceFullNameContent = new GUIContent("Replace Full Name?", "");
+                GUIContent replaceFullNameContent = new GUIContent("Replace Full Name?", renameFullNameTooltip);
                 replaceFullName = GUILayout.Toggle(replaceFullName, replaceFullNameContent);
                 if (replaceFullName)
                 {
@@ -1189,7 +1246,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                     EditorGUILayout.BeginHorizontal();
                     DrawBulletPoint("#00BEFF", 1);
                     string selectedName = selectedGameObject != null ? selectedGameObject.name : string.Empty;
-                    GUIContent replaceInNameContent = new GUIContent("Replace in Name:", "");
+                    GUIContent replaceInNameContent = new GUIContent("Replace in Name:", replaceInNameTooltip);
                     EditorGUILayout.TextField(replaceInNameContent, selectedName);
                     EditorGUILayout.EndHorizontal();
                     GUI.enabled = true;
@@ -1197,7 +1254,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                     #region Replace With
                     EditorGUILayout.BeginHorizontal();
                     DrawBulletPoint("#00BEFF", 1);
-                    GUIContent replacementNameContent = new GUIContent("Replace with:", "");
+                    GUIContent replacementNameContent = new GUIContent("Replace with:", replaceWithTooltip);
                     replacementName = EditorGUILayout.TextField(replacementNameContent, replacementName);
                     EditorGUILayout.EndHorizontal();
                     #endregion
@@ -1209,18 +1266,18 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 #region Prefix
                 EditorGUILayout.BeginHorizontal();
                 DrawBulletPoint("#00BEFF");
-                GUIContent prefixContent = new GUIContent("Prefix:", "");
+                GUIContent prefixContent = new GUIContent("Prefix:", prefixTooltip);
                 prefixName = EditorGUILayout.TextField(prefixContent, prefixName);
                 EditorGUILayout.EndHorizontal();
                 #endregion
                 #region Numerate Prefix
-                GUIContent numeratePrefixContent = new GUIContent("Numerate Prefix?", "");
+                GUIContent numeratePrefixContent = new GUIContent("Numerate Prefix?", numeratePrefixTooltip);
                 numeratePrefix = GUILayout.Toggle(numeratePrefix, numeratePrefixContent);
                 if (numeratePrefix)
                 {
                     #region Number of Leading Digits
                     EditorGUILayout.BeginHorizontal();
-                    GUIContent numOfLeadingDigitsPrefixContent = new GUIContent("Number of leading digits:", "");
+                    GUIContent numOfLeadingDigitsPrefixContent = new GUIContent("Number of leading digits:", numOfLeadingDigitsPrefixTooltip);
                     DrawBulletPoint("#00BEFF", 1);
                     numOfLeadingDigitsPrefix = EditorGUILayout.IntSlider(numOfLeadingDigitsPrefixContent, numOfLeadingDigitsPrefix, 0, 10);
                     if (GUILayout.Button("-"))
@@ -1236,7 +1293,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                     #region Count From
                     EditorGUILayout.BeginHorizontal();
                     DrawBulletPoint("#00BEFF", 1);
-                    GUIContent countFromPrefixContent = new GUIContent("Count from:", "");
+                    GUIContent countFromPrefixContent = new GUIContent("Count from:", countFromTooltip);
                     countFromPrefix = EditorGUILayout.IntSlider(countFromPrefixContent, countFromPrefix, 0, countFromAmount);
                     if (GUILayout.Button("-"))
                     {
@@ -1251,7 +1308,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                     #region Increment By
                     EditorGUILayout.BeginHorizontal();
                     DrawBulletPoint("#00BEFF", 1);
-                    GUIContent incrementByPrefixContent = new GUIContent("Increment by:", "");
+                    GUIContent incrementByPrefixContent = new GUIContent("Increment by:", incrementByTooltip);
                     incrementByPrefix = EditorGUILayout.IntSlider(incrementByPrefixContent, incrementByPrefix, 1, incrementalAmount);
                     if (GUILayout.Button("-"))
                     {
@@ -1266,7 +1323,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
                     #region Add Space?
                     EditorGUILayout.BeginHorizontal();
-                    GUIContent addPrefixSpaceContent = new GUIContent("Add Space?", "");
+                    GUIContent addPrefixSpaceContent = new GUIContent("Add Space?", addPrefixSpaceTooltip);
                     DrawBulletPoint("#00BEFF", 1);
                     addPrefixSpace = EditorGUILayout.Toggle(addPrefixSpaceContent, addPrefixSpace);
                     EditorGUILayout.EndHorizontal();
@@ -1285,18 +1342,18 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 #region Suffix
                 EditorGUILayout.BeginHorizontal();
                 DrawBulletPoint("#00BEFF");
-                GUIContent suffixContent = new GUIContent("Suffix:", "");
+                GUIContent suffixContent = new GUIContent("Suffix:", suffixTooltip);
                 suffixName = EditorGUILayout.TextField(suffixContent, suffixName);
                 EditorGUILayout.EndHorizontal();
                 #endregion
                 #region Numerate Suffix
-                GUIContent numerateSuffixContent = new GUIContent("Numerate Suffix?", "");
+                GUIContent numerateSuffixContent = new GUIContent("Numerate Suffix?", numerateSuffixTooltip);
                 numerateSuffix = GUILayout.Toggle(numerateSuffix, numerateSuffixContent);
                 if (numerateSuffix)
                 {
                     #region Number of Leading Digits
                     EditorGUILayout.BeginHorizontal();
-                    GUIContent numOfLeadingDigitsSuffixContent = new GUIContent("Number of leading digits:", "");
+                    GUIContent numOfLeadingDigitsSuffixContent = new GUIContent("Number of leading digits:", numOfLeadingDigitsSuffixTooltip);
                     DrawBulletPoint("#00BEFF", 1);
                     numOfLeadingDigitsSuffix = EditorGUILayout.IntSlider(numOfLeadingDigitsSuffixContent, numOfLeadingDigitsSuffix, 0, 10);
                     if (GUILayout.Button("-"))
@@ -1312,7 +1369,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                     #region Count From
                     EditorGUILayout.BeginHorizontal();
                     DrawBulletPoint("#00BEFF", 1);
-                    GUIContent countFromSuffixContent = new GUIContent("Count from:", "");
+                    GUIContent countFromSuffixContent = new GUIContent("Count from:", countFromTooltip);
                     countFromSuffix = EditorGUILayout.IntSlider(countFromSuffixContent, countFromSuffix, 0, countFromAmount);
                     if (GUILayout.Button("-"))
                     {
@@ -1327,7 +1384,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                     #region Increment By
                     EditorGUILayout.BeginHorizontal();
                     DrawBulletPoint("#00BEFF", 1);
-                    GUIContent incrementBySuffixContent = new GUIContent("Increment by:", "");
+                    GUIContent incrementBySuffixContent = new GUIContent("Increment by:", incrementByTooltip);
                     incrementBySuffix = EditorGUILayout.IntSlider(incrementBySuffixContent, incrementBySuffix, 1, incrementalAmount);
                     if (GUILayout.Button("-"))
                     {
@@ -1342,7 +1399,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
                     #region Add Space?
                     EditorGUILayout.BeginHorizontal();
-                    GUIContent addSuffixSpaceContent = new GUIContent("Add Space?", "");
+                    GUIContent addSuffixSpaceContent = new GUIContent("Add Space?", addSuffixSpaceTooltip);
                     DrawBulletPoint("#00BEFF", 1);
                     addSuffixSpace = EditorGUILayout.Toggle(addSuffixSpaceContent, addSuffixSpace);
                     EditorGUILayout.EndHorizontal();
@@ -1387,9 +1444,11 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
         GUI.backgroundColor = Color.white;
         GUI.contentColor = Color.white;
-        GUIContent groupUnderContent = new GUIContent("Group Duplicate(s) Under:", "Select which grouping method to group the duplicate(s) under.");
+        GUIContent groupUnderMainContent = new GUIContent("Group Duplicate(s) Under:", "Select which grouping method to group the duplicate(s) under.");
+        GUIContent groupUnderContent = new GUIContent("Group Under:", groupUnderTooltip);
+        GUIContent groupThisUnderContent = new GUIContent("Group This Under:", groupThisUnderTooltip);
         GUI.backgroundColor = AddColor("#B282FF");
-        groupUnderNum = EditorGUILayout.Popup(groupUnderContent, groupUnderNum, text);
+        groupUnderNum = EditorGUILayout.Popup(groupUnderMainContent, groupUnderNum, text);
         GUI.backgroundColor = Color.white;
 
         DrawPopupInfoBox(groupUnderTypeTooltips[groupUnderNum], "#B282FF");
@@ -1402,7 +1461,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             DrawBulletPoint("#B282FF");
             Transform parent = selectedGameObject.transform.parent != null ? selectedGameObject.transform.parent : null;
             GameObject parentObj = parent != null && parent.gameObject != null ? parent.gameObject : null;
-            EditorGUILayout.ObjectField("Group Under:", parentObj, typeof(GameObject), true);
+            EditorGUILayout.ObjectField(groupUnderContent, parentObj, typeof(GameObject), true);
             GUI.enabled = true;
             GUILayout.EndHorizontal();
         }
@@ -1412,7 +1471,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             GUI.enabled = false;
             DrawBulletPoint("#B282FF");
             groupName = selectedGameObject != null ? selectedGameObject.name : groupName;
-            EditorGUILayout.ObjectField("Group Under:", selectedGameObject, typeof(GameObject), true);
+            EditorGUILayout.ObjectField(groupUnderContent, selectedGameObject, typeof(GameObject), true);
             GUI.enabled = true;
             GUILayout.EndHorizontal();
         }
@@ -1430,7 +1489,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             GUILayout.BeginHorizontal();
             GUI.enabled = false;
             DrawBulletPoint("#B282FF");
-            EditorGUILayout.ObjectField("Group Under:", null, typeof(GameObject), true);
+            EditorGUILayout.ObjectField(groupUnderContent, null, typeof(GameObject), true);
             GUI.enabled = true;
             GUILayout.EndHorizontal();
         }
@@ -1445,7 +1504,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
             GUILayout.BeginHorizontal();
             DrawBulletPoint("#B282FF");
-            groupRelative = (GameObject)EditorGUILayout.ObjectField("Group This Under:", groupRelative, typeof(GameObject), true);
+            groupRelative = (GameObject)EditorGUILayout.ObjectField(groupThisUnderContent, groupRelative, typeof(GameObject), true);
 
             if (newGroupName == string.Empty)
             {
@@ -1511,9 +1570,13 @@ public class DuplicateSpecialToolEditor : EditorWindow
             {
                 zPos = transformMode == 0 ? 0f : positionProp.z;
             }
-            positionProp.x = DrawVectorComponent("X", positionProp.x, "#FD6D40", true);
-            positionProp.y = DrawVectorComponent("Y", linkPosition ? positionProp.x : positionProp.y, "#B1FD59", !linkPosition);
-            positionProp.z = DrawVectorComponent("Z", zPos, "#7FD6FD", !linkPosition, transformMode == 1);
+
+            GUIContent xPositionContent = new GUIContent("X", "X-position value");
+            GUIContent yPositionContent = new GUIContent("Y", "Y-position value");
+            GUIContent zPositionContent = new GUIContent("Z", "Z-position value");
+            positionProp.x = DrawVectorComponent(xPositionContent, positionProp.x, "#FD6D40", true);
+            positionProp.y = DrawVectorComponent(yPositionContent, linkPosition ? positionProp.x : positionProp.y, "#B1FD59", !linkPosition);
+            positionProp.z = DrawVectorComponent(zPositionContent, zPos, "#7FD6FD", !linkPosition, transformMode == 1);
 
             isDefaultPosition = positionProp == Vector3.zero;
             GUI.backgroundColor = isDefaultPosition ? Color.white : AddColor("#70e04a");
@@ -1524,14 +1587,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
             }
             GUI.enabled = true;
             GUI.backgroundColor = Color.white;
-            GUILayout.EndHorizontal();
-
-            // Toggle wide mode.
-            ToggleWideMode(114f);
-
-            GUILayout.BeginHorizontal();
-            DrawBulletPoint("#FD6D40", 1);
-            positionOffsetPattern = (OffsetPattern)EditorGUILayout.EnumPopup("Offset Method:", positionOffsetPattern);
             GUILayout.EndHorizontal();
             #endregion
 
@@ -1557,9 +1612,13 @@ public class DuplicateSpecialToolEditor : EditorWindow
             {
                 zRot = transformMode == 0 ? 0f : rotationProp.z;
             }
-            rotationProp.x = DrawVectorComponent("X", rotationProp.x, "#FD6D40", true);
-            rotationProp.y = DrawVectorComponent("Y", linkRotation ? rotationProp.x : rotationProp.y, "#B1FD59", !linkRotation);
-            rotationProp.z = DrawVectorComponent("Z", zRot, "#7FD6FD", !linkRotation, transformMode == 1);
+
+            GUIContent xRotationContent = new GUIContent("X", "X-rotation value");
+            GUIContent yRotationContent = new GUIContent("Y", "Y-rotation value");
+            GUIContent zRotationContent = new GUIContent("Z", "Z-rotation value");
+            rotationProp.x = DrawVectorComponent(xRotationContent, rotationProp.x, "#FD6D40", true);
+            rotationProp.y = DrawVectorComponent(yRotationContent, linkRotation ? rotationProp.x : rotationProp.y, "#B1FD59", !linkRotation);
+            rotationProp.z = DrawVectorComponent(zRotationContent, zRot, "#7FD6FD", !linkRotation, transformMode == 1);
 
             isDefaultRotation = rotationProp == Vector3.zero;
             GUI.backgroundColor = isDefaultRotation ? Color.white : AddColor("#70e04a");
@@ -1570,14 +1629,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
             }
             GUI.enabled = true;
             GUI.backgroundColor = Color.white;
-            GUILayout.EndHorizontal();
-
-            // Toggle wide mode.
-            ToggleWideMode(114f);
-
-            GUILayout.BeginHorizontal();
-            DrawBulletPoint("#FD6D40", 1);
-            rotationOffsetPattern = (OffsetPattern)EditorGUILayout.EnumPopup("Offset Method:", rotationOffsetPattern);
             GUILayout.EndHorizontal();
             #endregion
 
@@ -1603,9 +1654,13 @@ public class DuplicateSpecialToolEditor : EditorWindow
             {
                 zScale = transformMode == 0 ? 1f : scaleProp.z;
             }
-            scaleProp.x = DrawVectorComponent("X", scaleProp.x, "#FD6D40", true);
-            scaleProp.y = DrawVectorComponent("Y", linkScale ? scaleProp.x : scaleProp.y, "#B1FD59", !linkScale);
-            scaleProp.z = DrawVectorComponent("Z", zScale, "#7FD6FD", !linkScale, transformMode == 1);
+
+            GUIContent xScaleContent = new GUIContent("X", "X-scale value");
+            GUIContent yScaleContent = new GUIContent("Y", "Y-scale value");
+            GUIContent zScaleContent = new GUIContent("Z", "Z-scale value");
+            scaleProp.x = DrawVectorComponent(xScaleContent, scaleProp.x, "#FD6D40", true);
+            scaleProp.y = DrawVectorComponent(yScaleContent, linkScale ? scaleProp.x : scaleProp.y, "#B1FD59", !linkScale);
+            scaleProp.z = DrawVectorComponent(zScaleContent, zScale, "#7FD6FD", !linkScale, transformMode == 1);
 
             isDefaultScale = scaleProp == Vector3.one;
             GUI.backgroundColor = isDefaultScale ? Color.white : AddColor("#70e04a");
@@ -1616,14 +1671,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
             }
             GUI.enabled = true;
             GUI.backgroundColor = Color.white;
-            GUILayout.EndHorizontal();
-
-            // Toggle wide mode.
-            ToggleWideMode(114f);
-
-            GUILayout.BeginHorizontal();
-            DrawBulletPoint("#FD6D40", 1);
-            scaleOffsetPattern = (OffsetPattern)EditorGUILayout.EnumPopup("Offset Method:", scaleOffsetPattern);
             GUILayout.EndHorizontal();
             #endregion
         }
@@ -1636,23 +1683,23 @@ public class DuplicateSpecialToolEditor : EditorWindow
             #region Radius
             GUILayout.BeginHorizontal();
             DrawBulletPoint("#FD6D40");
-            GUIContent radiusContent = new GUIContent("Radius:", "");
+            GUIContent radiusContent = new GUIContent("Radius:", radiusTooltip);
             radialDistance = EditorGUILayout.Slider(radiusContent, radialDistance, 0f, 100f);
             GUILayout.EndHorizontal();
             #endregion
 
-            #region Circumference
+            #region Degree Measure
             GUILayout.BeginHorizontal();
             DrawBulletPoint("#FD6D40");
-            GUIContent areaContent = new GUIContent("Circumference:", "");
-            circumference = (Circumference)EditorGUILayout.Popup(areaContent, (int)circumference, circumferenceOptions);
+            GUIContent areaContent = new GUIContent("Degree Measure:", degreeMeasureTooltip);
+            degreeMeasure = (DegreeMeasure)EditorGUILayout.Popup(areaContent, (int)degreeMeasure, degreeMeasureOptions);
             GUILayout.EndHorizontal();
             #endregion
 
             #region Orientation
             GUILayout.BeginHorizontal();
             DrawBulletPoint("#FD6D40");
-            GUIContent orientationContent = new GUIContent("Orientation:", "");
+            GUIContent orientationContent = new GUIContent("Orientation:", circleOrientationTooltip);
             circleOrientation = (Orientation)EditorGUILayout.EnumPopup(orientationContent, circleOrientation);
             GUILayout.EndHorizontal();
             #endregion
@@ -1660,7 +1707,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             #region Look At Center?
             GUILayout.BeginHorizontal();
             DrawBulletPoint("#FD6D40");
-            GUIContent lookAtCenterContent = new GUIContent("Look At Center?", "");
+            GUIContent lookAtCenterContent = new GUIContent("Look At Center?", lookAtCenterTooltip);
             lookAtCenter = EditorGUILayout.Toggle(lookAtCenterContent, lookAtCenter);
             GUILayout.EndHorizontal();
             #endregion
@@ -1674,7 +1721,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             #region Curve Amount
             GUILayout.BeginHorizontal();
             DrawBulletPoint("#FD6D40");
-            GUIContent curveAmountContent = new GUIContent("Curve Amount:", "");
+            GUIContent curveAmountContent = new GUIContent("Curve Amount:", curveAmountTooltip);
             curveAmount = EditorGUILayout.Slider(curveAmountContent, curveAmount, 0f, 100f);
             GUILayout.EndHorizontal();
             #endregion
@@ -1682,7 +1729,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             #region Orientation
             GUILayout.BeginHorizontal();
             DrawBulletPoint("#FD6D40");
-            GUIContent spiralOrientationContent = new GUIContent("Orientation:", "");
+            GUIContent spiralOrientationContent = new GUIContent("Orientation:", spiralOrientationTooltip);
             spiralOrientation = (Orientation)EditorGUILayout.EnumPopup(spiralOrientationContent, spiralOrientation);
             GUILayout.EndHorizontal();
             #endregion
@@ -1690,7 +1737,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             #region Look At Center?
             GUILayout.BeginHorizontal();
             DrawBulletPoint("#FD6D40");
-            GUIContent lookAtSpiralCenterContent = new GUIContent("Look At Center?", "");
+            GUIContent lookAtSpiralCenterContent = new GUIContent("Look At Center?", lookAtSpiralCenterTooltip);
             lookAtSpiralCenter = EditorGUILayout.Toggle(lookAtSpiralCenterContent, lookAtSpiralCenter);
             GUILayout.EndHorizontal();
             #endregion
@@ -1704,7 +1751,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             ToggleWideMode(180f);
 
             #region Randomize Position?
-            GUIContent randomizePositionContent = new GUIContent("Randomize Position?", "");
+            GUIContent randomizePositionContent = new GUIContent("Randomize Position?", randomizePositionTooltip);
             randomizePosition = GUILayout.Toggle(randomizePosition, randomizePositionContent);
             if (randomizePosition)
             {
@@ -1716,7 +1763,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 maxDistance = Mathf.Clamp(Mathf.Round(maxDistance), minDistance, 1000);
 
                 DrawBulletPoint("#FD6D40", 1);
-                GUILayout.Label("Distance Range:");
+                GUIContent distanceRangeContent = new GUIContent("Distance Range:", distanceRangeTooltip);
+                GUILayout.Label(distanceRangeContent);
                 minDistance = EditorGUILayout.FloatField(minDistance);
                 EditorGUILayout.MinMaxSlider(ref minDistance, ref maxDistance, 0f, 1000f);
                 maxDistance = EditorGUILayout.FloatField(maxDistance);
@@ -1726,7 +1774,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 #region Lock Position (X)?
                 GUILayout.BeginHorizontal();
                 DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockPositionXContent = new GUIContent("Lock Position (X)?", "");
+                GUIContent lockPositionXContent = new GUIContent("Lock Position (X)?", lockPositionXTooltip);
                 lockPositionX = EditorGUILayout.Toggle(lockPositionXContent, lockPositionX);
                 GUILayout.EndHorizontal();
                 #endregion
@@ -1734,7 +1782,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 #region Lock Position (Y)?
                 GUILayout.BeginHorizontal();
                 DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockPositionYContent = new GUIContent("Lock Position (Y)?", "");
+                GUIContent lockPositionYContent = new GUIContent("Lock Position (Y)?", lockPositionYTooltip);
                 lockPositionY = EditorGUILayout.Toggle(lockPositionYContent, lockPositionY);
                 GUILayout.EndHorizontal();
                 #endregion
@@ -1742,7 +1790,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 #region Lock Position (Z)?
                 GUILayout.BeginHorizontal();
                 DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockPositionZContent = new GUIContent("Lock Position (Z)?", "");
+                GUIContent lockPositionZContent = new GUIContent("Lock Position (Z)?", lockPositionZTooltip);
                 lockPositionZ = EditorGUILayout.Toggle(lockPositionZContent, lockPositionZ);
                 GUILayout.EndHorizontal();
                 #endregion
@@ -1752,14 +1800,14 @@ public class DuplicateSpecialToolEditor : EditorWindow
             DrawLine(GetColorFromHexString("#555555"), 1, 12f);
 
             #region Randomize Rotation?
-            GUIContent randomizeRotationContent = new GUIContent("Randomize Rotation?", "");
+            GUIContent randomizeRotationContent = new GUIContent("Randomize Rotation?", randomizeRotationTooltip);
             randomizeRotation = GUILayout.Toggle(randomizeRotation, randomizeRotationContent);
             if (randomizeRotation)
             {
                 #region Lock Pitch (X)?
                 GUILayout.BeginHorizontal();
                 DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockPitchContent = new GUIContent("Lock Pitch (X)?", "");
+                GUIContent lockPitchContent = new GUIContent("Lock Pitch (X)?", lockRotationXTooltip);
                 lockPitch = EditorGUILayout.Toggle(lockPitchContent, lockPitch);
                 GUILayout.EndHorizontal();
                 #endregion
@@ -1767,7 +1815,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 #region Lock Yaw (Y)?
                 GUILayout.BeginHorizontal();
                 DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockYawContent = new GUIContent("Lock Yaw (Y)?", "");
+                GUIContent lockYawContent = new GUIContent("Lock Yaw (Y)?", lockRotationYTooltip);
                 lockYaw = EditorGUILayout.Toggle(lockYawContent, lockYaw);
                 GUILayout.EndHorizontal();
                 #endregion
@@ -1775,7 +1823,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 #region Lock Roll (Z)?
                 GUILayout.BeginHorizontal();
                 DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockRollContent = new GUIContent("Lock Roll (Z)?", "");
+                GUIContent lockRollContent = new GUIContent("Lock Roll (Z)?", lockRotationZTooltip);
                 lockRoll = EditorGUILayout.Toggle(lockRollContent, lockRoll);
                 GUILayout.EndHorizontal();
                 #endregion
@@ -1785,7 +1833,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             DrawLine(GetColorFromHexString("#555555"), 1, 12f);
 
             #region Randomize Scale?
-            GUIContent randomizeScaleContent = new GUIContent("Randomize Scale?", "");
+            GUIContent randomizeScaleContent = new GUIContent("Randomize Scale?", randomizeScaleTooltip);
             randomizeScale = GUILayout.Toggle(randomizeScale, randomizeScaleContent);
             if (randomizeScale)
             {
@@ -1797,7 +1845,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 maxScale = Mathf.Clamp(maxScale, minScale, absoluteMaxScaleValue);
 
                 DrawBulletPoint("#FD6D40", 1);
-                GUILayout.Label("Scale Range:");
+                GUIContent scaleRangeContent = new GUIContent("Scale Range:", scaleRangeTooltip);
+                GUILayout.Label(scaleRangeContent);
                 minScale = EditorGUILayout.FloatField(minScale);
                 EditorGUILayout.MinMaxSlider(ref minScale, ref maxScale, 0f, absoluteMaxScaleValue);
                 maxScale = EditorGUILayout.FloatField(maxScale);
@@ -1807,7 +1856,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 #region Lock Scale (X)?
                 GUILayout.BeginHorizontal();
                 DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockScaleXContent = new GUIContent("Lock Scale (X)?", "");
+                GUIContent lockScaleXContent = new GUIContent("Lock Scale (X)?", lockScaleXTooltip);
                 lockScaleX = EditorGUILayout.Toggle(lockScaleXContent, lockScaleX);
                 GUILayout.EndHorizontal();
                 #endregion
@@ -1815,7 +1864,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 #region Lock Scale (Y)?
                 GUILayout.BeginHorizontal();
                 DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockScaleYContent = new GUIContent("Lock Scale (Y)?", "");
+                GUIContent lockScaleYContent = new GUIContent("Lock Scale (Y)?", lockScaleYTooltip);
                 lockScaleY = EditorGUILayout.Toggle(lockScaleYContent, lockScaleY);
                 GUILayout.EndHorizontal();
                 #endregion
@@ -1823,7 +1872,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 #region Lock Scale (Z)?
                 GUILayout.BeginHorizontal();
                 DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockScaleZContent = new GUIContent("Lock Scale (Z)?", "");
+                GUIContent lockScaleZContent = new GUIContent("Lock Scale (Z)?", lockScaleZTooltip);
                 lockScaleZ = EditorGUILayout.Toggle(lockScaleZContent, lockScaleZ);
                 GUILayout.EndHorizontal();
                 #endregion
@@ -1857,11 +1906,19 @@ public class DuplicateSpecialToolEditor : EditorWindow
         showGroupUnderSection = false;
         showTransformSection = false;
     }
+
+    /// <summary>
+    /// Open the official documentation on how to use the Duplicate Special Tool.
+    /// </summary>
+    private void OpenDocumentation()
+    {
+        Application.OpenURL("https://docs.google.com/document/d/1OYRyDVw_OaqRfMgRfAHvz5oz9ETszxRQ8XC0xVTDda8/edit#");
+    }
     #endregion
     #endregion
 
     #region Draw Window Element Method(s)
-    private float DrawVectorComponent(string text, float value, string boxColor, params bool[] conditions)
+    private float DrawVectorComponent(GUIContent guiContent, float value, string boxColor, params bool[] conditions)
     {
         bool isEnabled = true;
         foreach (bool condition in conditions)
@@ -1877,7 +1934,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUILayout.BeginHorizontal(EditorStyles.helpBox);
         GUI.enabled = isEnabled;
         GUI.contentColor = isEnabled ? AddColor(Color.white) : Color.white;
-        value = EditorGUILayout.FloatField(text, value);
+        value = EditorGUILayout.FloatField(guiContent, value);
         GUI.contentColor = Color.white;
         GUI.enabled = true;
         GUILayout.EndHorizontal();
