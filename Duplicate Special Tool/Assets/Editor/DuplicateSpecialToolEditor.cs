@@ -228,7 +228,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
     #region Circle Mode
     private float radialDistance = 0f;
-    private bool lookAtCenter = false;
     private Orientation circleOrientation = Orientation.X;
     private DegreeMeasure degreeMeasure = DegreeMeasure.FullCircle;
     private readonly string[] degreeMeasureOptions = new string[]
@@ -241,16 +240,13 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private readonly string radiusTooltip = "Specify the length of the circular pattern.";
     private readonly string degreeMeasureTooltip = "Specify the degree measure of the circular pattern.";
     private readonly string circleOrientationTooltip = "Specify how the circular group of duplicates is aligned on a given axis.";
-    private readonly string lookAtCenterTooltip = "When enabled, all duplicates will look at the center of the circular pattern.";
     #endregion
 
     #region Spiral Mode
     private float curveAmount = 0f;
-    private bool lookAtSpiralCenter = false;
     private Orientation spiralOrientation = Orientation.X;
     private readonly string curveAmountTooltip = "Specify the curve amount of the spiral pattern.";
     private readonly string spiralOrientationTooltip = "Specify how the spiral group of duplicates is aligned on a given axis.";
-    private readonly string lookAtSpiralCenterTooltip = "When enabled, all duplicates will look at the center of the spiral pattern.";
     #endregion
 
     #region Random Mode
@@ -865,17 +861,14 @@ public class DuplicateSpecialToolEditor : EditorWindow
     {
         int index = 0;
         int countOffset = degreeMeasure == DegreeMeasure.FullCircle ? 0 : 1;
-        Vector3 centerPoint = selectedGameObject != null ? selectedGameObject.transform.position : Vector3.zero;
+        Vector3 centerPoint = selectedGameObject.transform.position;
         float angleQuotient = duplicatedObjects.Count > 1 ? GetDegreeMeasure() / (duplicatedObjects.Count - countOffset) : 0f;
 
         // Arrange each duplicate around the center.
         foreach (GameObject duplicatedObj in duplicatedObjects)
         {
+            Vector3 angle = duplicatedObj.transform.eulerAngles;
             duplicatedObj.transform.position = GetRadialVector(circleOrientation, centerPoint, radialDistance, angleQuotient * index);
-            if (lookAtCenter)
-            {
-                duplicatedObj.transform.LookAt(centerPoint);
-            }
 
             // Increment index.
             index++;
@@ -918,10 +911,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
             Vector3 position = origin;
             float distanceFromCenter = Vector3.Distance(origin, duplicatedObj.transform.position);
             duplicatedObj.transform.position = GetRadialVector(spiralOrientation, origin, index * 0.1f, curveAmount * 0.5f * index);
-            if (lookAtSpiralCenter)
-            {
-                duplicatedObj.transform.LookAt(origin);
-            }
 
             // Increment index.
             index++;
@@ -1469,7 +1458,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             GUILayout.BeginHorizontal();
             GUI.enabled = false;
             DrawBulletPoint("#B282FF");
-            Transform parent = selectedGameObject.transform.parent != null ? selectedGameObject.transform.parent : null;
+            Transform parent = selectedGameObject != null && selectedGameObject.transform.parent != null ? selectedGameObject.transform.parent : null;
             GameObject parentObj = parent != null && parent.gameObject != null ? parent.gameObject : null;
             EditorGUILayout.ObjectField(groupUnderContent, parentObj, typeof(GameObject), true);
             GUI.enabled = true;
@@ -1684,14 +1673,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 circleOrientation = (Orientation)EditorGUILayout.EnumPopup(orientationContent, circleOrientation);
                 GUILayout.EndHorizontal();
                 #endregion
-
-                #region Look At Center?
-                GUILayout.BeginHorizontal();
-                DrawBulletPoint("#FD6D40");
-                GUIContent lookAtCenterContent = new GUIContent("Look At Center?", lookAtCenterTooltip);
-                lookAtCenter = EditorGUILayout.Toggle(lookAtCenterContent, lookAtCenter);
-                GUILayout.EndHorizontal();
-                #endregion
                 break;
             // Transform Mode: Spiral
             case TransformMode.Spiral:
@@ -1711,14 +1692,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 DrawBulletPoint("#FD6D40");
                 GUIContent spiralOrientationContent = new GUIContent("Orientation:", spiralOrientationTooltip);
                 spiralOrientation = (Orientation)EditorGUILayout.EnumPopup(spiralOrientationContent, spiralOrientation);
-                GUILayout.EndHorizontal();
-                #endregion
-
-                #region Look At Center?
-                GUILayout.BeginHorizontal();
-                DrawBulletPoint("#FD6D40");
-                GUIContent lookAtSpiralCenterContent = new GUIContent("Look At Center?", lookAtSpiralCenterTooltip);
-                lookAtSpiralCenter = EditorGUILayout.Toggle(lookAtSpiralCenterContent, lookAtSpiralCenter);
                 GUILayout.EndHorizontal();
                 #endregion
                 break;
