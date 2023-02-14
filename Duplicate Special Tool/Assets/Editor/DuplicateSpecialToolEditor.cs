@@ -10,8 +10,10 @@ public class DuplicateSpecialToolEditor : EditorWindow
     #region Enums
     public enum TransformMode
     {
-        TwoDimensional = 0,
-        ThreeDimensional = 1
+        Line = 0,
+        Circle = 1,
+        Spiral = 2,
+        Random = 3
     }
 
     public enum NamingMethod
@@ -49,6 +51,9 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private readonly string boxHeaderColor = "#4b535e";
 
     private Vector2 scrollPosition;
+
+    // Banner
+    private readonly string bannerPath = "Assets/Editor/Graphics/Duplicate Special Tool Banner.png";
 
     // Icons
     private readonly string numberOfCopiesIconPath = "Assets/Editor/Icons/NumberOfCopiesIcon.png";
@@ -127,6 +132,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private bool addUnderscoreSuffix = false;
     private bool addHyphenSuffix = false;
 
+    private string namingMethodTooltip = "Specify how duplicated object(s) should be named.";
     private string renameFullNameTooltip = "Enable this to set a new name for all duplicates.";
     private string replaceInNameTooltip = "The selected GameObject's name to replace.";
     private string replaceWithTooltip = "Type in a word to set a new name for all duplicates.";
@@ -136,13 +142,13 @@ public class DuplicateSpecialToolEditor : EditorWindow
                                       "The range is from 0 to 100.";
     private string incrementByTooltip = "Specify the number to increment by.\n\n" +
                                         "The range is from 0 to 10.";
-    private string prefixTooltip = "Type in a word to add in front of each duplicate’s name.";
-    private string numeratePrefixTooltip = "";
+    private string prefixTooltip = "Type in a word to add before each duplicate’s name.";
+    private string numeratePrefixTooltip = "Enable this to enumerate through all duplicates’ prefix names by number.";
     private string addPrefixSpaceTooltip = "Enable this to add a space between the name and the number (prefix).";
     private string numOfLeadingDigitsSuffixTooltip = "Specify the number of leading digits to add after each duplicate’s name.\n\n" +
                                                      "The range is from 0 to 10.";
-    private string suffixTooltip = "Type in a word to add behind each duplicate’s name.";
-    private string numerateSuffixTooltip = "";
+    private string suffixTooltip = "Type in a word to add after each duplicate’s name.";
+    private string numerateSuffixTooltip = "Enable this to enumerate through all duplicates’ suffix names by number.";
     private string addSuffixSpaceTooltip = "Enable this to add a space between the name and the number (suffix).";
 
     // Section Fields
@@ -172,19 +178,17 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
     #region Transform
     private bool showTransformSection = false;
-    private int transformMode;
-    private readonly string[] transformModes = new string[] { "2D", "3D", "Grid", "Circle", "Spiral", "Random" };
+    private TransformMode transformMode = TransformMode.Line;
+    private readonly string[] transformModes = new string[] { "Line", "Circle", "Spiral", "Random" };
     private readonly string[] transformModeTooltips = new string[]
     {
-        "Set the position, rotation, and scale of all duplicate(s) in a 2D space (X,Y).",
-        "Set the position, rotation, and scale of all duplicate(s) in a 3D space (X,Y,Z).",
-        "Arrange all duplicate(s) on a 2D grid (X,Y).",
+        "Set the position, rotation, and scale of all duplicate(s) along a line.",
         "Arrange all duplicate(s) in a circular pattern.",
         "Arrange all duplicate(s) in a spiral pattern.",
         "Randomly set the position, rotation, and scale of all duplicate(s)."
     };
 
-    #region 2D/3D Modes
+    #region Line Mode
     #region Translate (Offset)
     private Vector3 positionProp = Vector3.zero;
     private bool isDefaultPosition;
@@ -208,7 +212,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                                                    "Default rotation is (X: 0.0, Y: 0.0, Z: 0.0).";
     #endregion
     #region Scale (Offset)
-    private Vector3 scaleProp = Vector3.one;
+    private Vector3 scaleProp = Vector3.zero;
     private bool isDefaultScale;
     private bool linkScale = false;
     private readonly string scaleTooltip = "Scale duplicate(s) on a given axis/axes. ";
@@ -216,7 +220,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                                                "Unlink the axes to set different scale values for the X, Y, and Z " +
                                                "axis properties.";
     private readonly string resetScaleTooltip = "Reset scale values to their default values.\n\n" +
-                                                "Default scale is (X: 1.0, Y: 1.0, Z: 1.0).";
+                                                "Default scale is (X: 0.0, Y: 0.0, Z: 0.0).";
     #endregion
     #endregion
 
@@ -337,7 +341,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         // Set Selected GameObject.
         if (Selection.activeObject != null)
         {
-            selectedGameObject = (GameObject)Selection.activeObject;
+            selectedGameObject = (GameObject)Selection.activeObject; // ERROR
         }
 
         // Initialize duplicates cache.
@@ -359,10 +363,12 @@ public class DuplicateSpecialToolEditor : EditorWindow
         if (window.docked)
         {
             window.minSize = new Vector2(540f, 200f);
+            window.maxSize = new Vector2(540f, 360f);
         }
         else
         {
             window.minSize = new Vector2(540f, 480f);
+            window.maxSize = new Vector2(540f, 720f);
         }
 
         GUIStyle footerButtonStyle = new GUIStyle(GUI.skin.button)
@@ -370,13 +376,20 @@ public class DuplicateSpecialToolEditor : EditorWindow
             fontSize = 13,
             fontStyle = FontStyle.Bold,
             alignment = TextAnchor.MiddleCenter,
-            fixedHeight = 36f,
+            fixedHeight = 36f
         };
 
-        #region Header
-
-        GUILayout.Label("Duplicate Special Tool is a special tool which provides users various options to", EditorStyles.boldLabel);
-        GUILayout.Space(120f);
+        #region Banner
+        var banner = AssetDatabase.LoadAssetAtPath(bannerPath, typeof(Texture2D)) as Texture2D;
+        GUIStyle bannerStyle = new GUIStyle(GUI.skin.box)
+        {
+            stretchWidth = true,
+            stretchHeight = true,
+            fixedWidth = position.width - 18f,
+            fixedHeight = banner.height - 85f,
+            alignment = TextAnchor.UpperCenter
+        };
+        GUILayout.Box(banner, bannerStyle);
         #endregion
 
         DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
@@ -508,13 +521,13 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
     #region Duplicate Special Tool Method(s)
     /// <summary>
-    /// Reset transform property.
+    /// Reset transform property to (0,0,0).
     /// </summary>
     /// <param name="v">Specified vector.</param>
     /// <param name="defaultValue">Default value.</param>
-    private void ResetTransformProperty(ref Vector3 v, Vector3 defaultValue)
+    private void ResetTransformPropertyToZero(ref Vector3 v)
     {
-        v = defaultValue;
+        v = Vector3.zero;
     }
 
     private void SetNameSeparatorToggles(bool bAddParentheses, bool bAddBrackets, bool bAddBraces,
@@ -798,31 +811,30 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// <param name="duplicatedObjects">Duplicated objects.</param>
     private void SetPositions(List<GameObject> duplicatedObjects)
     {
-        if (transformMode == 0 || transformMode == 1)
+        switch (transformMode)
         {
-            DistributeDuplicatesLinearly(duplicatedObjects);
-        }
-        else if (transformMode == 3)
-        {
-            DistributeDuplicatesInCircle(duplicatedObjects);
-        }
-        else if (transformMode == 4)
-        {
-            DistributeDuplicatesInSpiral(duplicatedObjects);
-        }
-        else if (transformMode == 5)
-        {
-            if (randomizePosition)
-            {
-                DistributeDuplicatesAtRandom(duplicatedObjects);
-            }
-            else
-            {
-                foreach (GameObject duplicatedObj in duplicatedObjects)
+            case TransformMode.Line:
+                DistributeDuplicatesLinearly(duplicatedObjects);
+                break;
+            case TransformMode.Circle:
+                DistributeDuplicatesInCircle(duplicatedObjects);
+                break;
+            case TransformMode.Spiral:
+                DistributeDuplicatesInSpiral(duplicatedObjects);
+                break;
+            case TransformMode.Random:
+                if (randomizePosition)
                 {
-                    duplicatedObj.transform.position = Vector3.zero;
+                    DistributeDuplicatesAtRandom(duplicatedObjects);
                 }
-            }
+                else
+                {
+                    foreach (GameObject duplicatedObj in duplicatedObjects)
+                    {
+                        duplicatedObj.transform.position = Vector3.zero;
+                    }
+                }
+                break;
         }
     }
 
@@ -838,7 +850,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
         foreach (GameObject duplicatedObj in duplicatedObjects)
         {
             Vector3 position = origin;
-
             duplicatedObj.transform.position = position + (positionProp * index);
 
             // Increment index.
@@ -950,23 +961,24 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// <param name="duplicatedObjects">Duplicated objects.</param>
     private void SetRotations(List<GameObject> duplicatedObjects)
     {
-        if (transformMode == 0 || transformMode == 1)
+        switch (transformMode)
         {
-            RotateDuplicatesLinearly(duplicatedObjects);
-        }
-        else if (transformMode == 5)
-        {
-            if (randomizeRotation)
-            {
-                RotateDuplicatesAtRandom(duplicatedObjects);
-            }
-            else
-            {
-                foreach (GameObject duplicatedObj in duplicatedObjects)
+            case TransformMode.Line:
+                RotateDuplicatesLinearly(duplicatedObjects);
+                break;
+            case TransformMode.Random:
+                if (randomizeRotation)
                 {
-                    duplicatedObj.transform.eulerAngles = Vector3.zero;
+                    RotateDuplicatesAtRandom(duplicatedObjects);
                 }
-            }
+                else
+                {
+                    foreach (GameObject duplicatedObj in duplicatedObjects)
+                    {
+                        duplicatedObj.transform.eulerAngles = Vector3.zero;
+                    }
+                }
+                break;
         }
     }
 
@@ -991,7 +1003,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private void RotateDuplicatesAtRandom(List<GameObject> duplicatedObjects)
     {
         Vector3 selectedGameObjectRotation = selectedGameObject.transform.eulerAngles;
-
         foreach (GameObject duplicatedObj in duplicatedObjects)
         {
             // Get random pitch (X) value.
@@ -1014,23 +1025,24 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// <param name="duplicatedObjects">Duplicated objects.</param>
     private void SetScales(List<GameObject> duplicatedObjects)
     {
-        if (transformMode == 0 || transformMode == 1)
+        switch (transformMode)
         {
-            ScaleDuplicatesLinearly(duplicatedObjects);
-        }
-        else if (transformMode == 5)
-        {
-            if (randomizeScale)
-            {
-                ScaleDuplicatesAtRandom(duplicatedObjects);
-            }
-            else
-            {
-                foreach (GameObject duplicatedObj in duplicatedObjects)
+            case TransformMode.Line:
+                ScaleDuplicatesLinearly(duplicatedObjects);
+                break;
+            case TransformMode.Random:
+                if (randomizeScale)
                 {
-                    duplicatedObj.transform.localScale = Vector3.one;
+                    ScaleDuplicatesAtRandom(duplicatedObjects);
                 }
-            }
+                else
+                {
+                    foreach (GameObject duplicatedObj in duplicatedObjects)
+                    {
+                        duplicatedObj.transform.localScale = Vector3.one;
+                    }
+                }
+                break;
         }
     }
 
@@ -1040,13 +1052,11 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private void ScaleDuplicatesLinearly(List<GameObject> duplicatedObjects)
     {
         int index = 1;
+        Vector3 scale = selectedGameObject != null ? selectedGameObject.transform.localScale : Vector3.one;
 
         foreach (GameObject duplicatedObj in duplicatedObjects)
         {
-            Vector3 scale = scaleProp;
-            scale.z = transformMode == 0 ? 1f : scale.z;
-
-            duplicatedObj.transform.localScale = scale * index;
+            duplicatedObj.transform.localScale = scale + (scaleProp * index);
 
             // Increment index.
             index++;
@@ -1165,7 +1175,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     protected void DisplayNamingConventionsSection()
     {
         var namingMethods = new string[] { "Numbers", "Custom" };
-        GUIContent namingMethodContent = new GUIContent("Naming Method:", "");
+        GUIContent namingMethodContent = new GUIContent("Naming Method:", namingMethodTooltip);
         GUI.backgroundColor = AddColor("#00BEFF");
         namingMethodType = (NamingMethod)EditorGUILayout.Popup(namingMethodContent, (int)namingMethodType, namingMethods);
         DrawPopupInfoBox(namingMethodTooltips[(int)namingMethodType], "#00BEFF");
@@ -1178,7 +1188,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             case NamingMethod.Numbers:
                 #region Number of Leading Digits
                 EditorGUILayout.BeginHorizontal();
-                GUIContent numOfLeadingDigitsContent = new GUIContent("Number of leading digits:", numerateSuffixTooltip);
+                GUIContent numOfLeadingDigitsContent = new GUIContent("Number of leading digits:", numOfLeadingDigitsSuffixTooltip);
                 DrawBulletPoint("#00BEFF");
                 numOfLeadingDigits = EditorGUILayout.IntSlider(numOfLeadingDigitsContent, numOfLeadingDigits, 0, 10);
                 if (GUILayout.Button("-"))
@@ -1532,8 +1542,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
         var linkOffIcon = AssetDatabase.LoadAssetAtPath(linkOffIconPath, typeof(Texture2D)) as Texture2D;
 
         GUI.backgroundColor = AddColor("#FD6D40");
-        transformMode = EditorGUILayout.Popup("Mode:", transformMode, transformModes);
-        DrawPopupInfoBox(transformModeTooltips[transformMode], "#FD6D40");
+        transformMode = (TransformMode)EditorGUILayout.Popup("Mode:", (int)transformMode, transformModes);
+        DrawPopupInfoBox(transformModeTooltips[(int)transformMode], "#FD6D40");
         GUI.backgroundColor = Color.white;
         GUILayout.Space(8);
 
@@ -1542,344 +1552,314 @@ public class DuplicateSpecialToolEditor : EditorWindow
         // Toggle wide mode.
         ToggleWideMode(12f);
 
-        // Transform Mode(s): 2D/3D
-        if (transformMode == 0 || transformMode == 1)
+        switch (transformMode)
         {
-            GUIStyle buttonStyle = new GUIStyle(GUI.skin.button)
-            {
-                fixedWidth = 24,
-                fixedHeight = 24
-            };
+            // Transform Mode: Line
+            case TransformMode.Line:
+                GUIStyle buttonStyle = new GUIStyle(GUI.skin.button)
+                {
+                    fixedWidth = 24,
+                    fixedHeight = 24
+                };
 
-            #region Translate
-            GUILayout.BeginHorizontal();
-            DrawBulletPoint("#FD6D40");
-            Texture2D linkPositionIcon = linkPosition ? linkOnIcon : linkOffIcon;
-            GUIContent positionContent = new GUIContent("Translate (Offset):", positionTooltip);
-            GUIContent resetPositionContent = new GUIContent("↺", resetPositionTooltip);
-            GUIContent linkPositionContent = new GUIContent(linkPositionIcon, linkPositionTooltip);
-            GUILayout.Label(positionContent);
-            linkPosition = GUILayout.Toggle(linkPosition, linkPositionContent, buttonStyle);
-
-            float zPos = 0f;
-            if (linkPosition)
-            {
-                zPos = transformMode == 0 ? 0f : positionProp.x;
-            }
-            else
-            {
-                zPos = transformMode == 0 ? 0f : positionProp.z;
-            }
-
-            GUIContent xPositionContent = new GUIContent("X", "X-position value");
-            GUIContent yPositionContent = new GUIContent("Y", "Y-position value");
-            GUIContent zPositionContent = new GUIContent("Z", "Z-position value");
-            positionProp.x = DrawVectorComponent(xPositionContent, positionProp.x, "#FD6D40", true);
-            positionProp.y = DrawVectorComponent(yPositionContent, linkPosition ? positionProp.x : positionProp.y, "#B1FD59", !linkPosition);
-            positionProp.z = DrawVectorComponent(zPositionContent, zPos, "#7FD6FD", !linkPosition, transformMode == 1);
-
-            isDefaultPosition = positionProp == Vector3.zero;
-            GUI.backgroundColor = isDefaultPosition ? Color.white : AddColor("#70e04a");
-            GUI.enabled = !isDefaultPosition;
-            if (GUILayout.Button(resetPositionContent, buttonStyle))
-            {
-                ResetTransformProperty(ref positionProp, Vector3.zero);
-            }
-            GUI.enabled = true;
-            GUI.backgroundColor = Color.white;
-            GUILayout.EndHorizontal();
-            #endregion
-
-            #region Rotate
-            // Toggle wide mode.
-            ToggleWideMode(12f);
-
-            GUILayout.BeginHorizontal();
-            DrawBulletPoint("#FD6D40");
-            Texture2D linkRotationIcon = linkRotation ? linkOnIcon : linkOffIcon;
-            GUIContent rotationContent = new GUIContent("Rotate (Offset):     ", rotationTooltip);
-            GUIContent resetRotationContent = new GUIContent("↺", resetRotationTooltip);
-            GUIContent linkRotationContent = new GUIContent(linkRotationIcon, linkRotationTooltip);
-            GUILayout.Label(rotationContent);
-            linkRotation = GUILayout.Toggle(linkRotation, linkRotationContent, buttonStyle);
-
-            float zRot = 0f;
-            if (linkRotation)
-            {
-                zRot = transformMode == 0 ? 0f : rotationProp.x;
-            }
-            else
-            {
-                zRot = transformMode == 0 ? 0f : rotationProp.z;
-            }
-
-            GUIContent xRotationContent = new GUIContent("X", "X-rotation value");
-            GUIContent yRotationContent = new GUIContent("Y", "Y-rotation value");
-            GUIContent zRotationContent = new GUIContent("Z", "Z-rotation value");
-            rotationProp.x = DrawVectorComponent(xRotationContent, rotationProp.x, "#FD6D40", true);
-            rotationProp.y = DrawVectorComponent(yRotationContent, linkRotation ? rotationProp.x : rotationProp.y, "#B1FD59", !linkRotation);
-            rotationProp.z = DrawVectorComponent(zRotationContent, zRot, "#7FD6FD", !linkRotation, transformMode == 1);
-
-            isDefaultRotation = rotationProp == Vector3.zero;
-            GUI.backgroundColor = isDefaultRotation ? Color.white : AddColor("#70e04a");
-            GUI.enabled = !isDefaultRotation;
-            if (GUILayout.Button(resetRotationContent, buttonStyle))
-            {
-                ResetTransformProperty(ref rotationProp, Vector3.zero);
-            }
-            GUI.enabled = true;
-            GUI.backgroundColor = Color.white;
-            GUILayout.EndHorizontal();
-            #endregion
-
-            #region Scale
-            // Toggle wide mode.
-            ToggleWideMode(12f);
-
-            GUILayout.BeginHorizontal();
-            DrawBulletPoint("#FD6D40");
-            Texture2D linkScaleIcon = linkScale ? linkOnIcon : linkOffIcon;
-            GUIContent scaleContent = new GUIContent("Scale (Offset):       ", scaleTooltip);
-            GUIContent resetScaleContent = new GUIContent("↺", resetScaleTooltip);
-            GUIContent linkScaleContent = new GUIContent(linkScaleIcon, linkScaleTooltip);
-            GUILayout.Label(scaleContent);
-            linkScale = GUILayout.Toggle(linkScale, linkScaleContent, buttonStyle);
-
-            float zScale = 0f;
-            if (linkScale)
-            {
-                zScale = transformMode == 0 ? 1f : scaleProp.x;
-            }
-            else
-            {
-                zScale = transformMode == 0 ? 1f : scaleProp.z;
-            }
-
-            GUIContent xScaleContent = new GUIContent("X", "X-scale value");
-            GUIContent yScaleContent = new GUIContent("Y", "Y-scale value");
-            GUIContent zScaleContent = new GUIContent("Z", "Z-scale value");
-            scaleProp.x = DrawVectorComponent(xScaleContent, scaleProp.x, "#FD6D40", true);
-            scaleProp.y = DrawVectorComponent(yScaleContent, linkScale ? scaleProp.x : scaleProp.y, "#B1FD59", !linkScale);
-            scaleProp.z = DrawVectorComponent(zScaleContent, zScale, "#7FD6FD", !linkScale, transformMode == 1);
-
-            isDefaultScale = scaleProp == Vector3.one;
-            GUI.backgroundColor = isDefaultScale ? Color.white : AddColor("#70e04a");
-            GUI.enabled = !isDefaultScale;
-            if (GUILayout.Button(resetScaleContent, buttonStyle))
-            {
-                ResetTransformProperty(ref scaleProp, Vector3.one);
-            }
-            GUI.enabled = true;
-            GUI.backgroundColor = Color.white;
-            GUILayout.EndHorizontal();
-            #endregion
-        }
-        // Circle
-        else if (transformMode == 3)
-        {
-            // Toggle wide mode.
-            ToggleWideMode(180f);
-
-            #region Radius
-            GUILayout.BeginHorizontal();
-            DrawBulletPoint("#FD6D40");
-            GUIContent radiusContent = new GUIContent("Radius:", radiusTooltip);
-            radialDistance = EditorGUILayout.Slider(radiusContent, radialDistance, 0f, 100f);
-            GUILayout.EndHorizontal();
-            #endregion
-
-            #region Degree Measure
-            GUILayout.BeginHorizontal();
-            DrawBulletPoint("#FD6D40");
-            GUIContent areaContent = new GUIContent("Degree Measure:", degreeMeasureTooltip);
-            degreeMeasure = (DegreeMeasure)EditorGUILayout.Popup(areaContent, (int)degreeMeasure, degreeMeasureOptions);
-            GUILayout.EndHorizontal();
-            #endregion
-
-            #region Orientation
-            GUILayout.BeginHorizontal();
-            DrawBulletPoint("#FD6D40");
-            GUIContent orientationContent = new GUIContent("Orientation:", circleOrientationTooltip);
-            circleOrientation = (Orientation)EditorGUILayout.EnumPopup(orientationContent, circleOrientation);
-            GUILayout.EndHorizontal();
-            #endregion
-
-            #region Look At Center?
-            GUILayout.BeginHorizontal();
-            DrawBulletPoint("#FD6D40");
-            GUIContent lookAtCenterContent = new GUIContent("Look At Center?", lookAtCenterTooltip);
-            lookAtCenter = EditorGUILayout.Toggle(lookAtCenterContent, lookAtCenter);
-            GUILayout.EndHorizontal();
-            #endregion
-        }
-        // Spiral
-        else if (transformMode == 4)
-        {
-            // Toggle wide mode.
-            ToggleWideMode(180f);
-
-            #region Curve Amount
-            GUILayout.BeginHorizontal();
-            DrawBulletPoint("#FD6D40");
-            GUIContent curveAmountContent = new GUIContent("Curve Amount:", curveAmountTooltip);
-            curveAmount = EditorGUILayout.Slider(curveAmountContent, curveAmount, 0f, 100f);
-            GUILayout.EndHorizontal();
-            #endregion
-
-            #region Orientation
-            GUILayout.BeginHorizontal();
-            DrawBulletPoint("#FD6D40");
-            GUIContent spiralOrientationContent = new GUIContent("Orientation:", spiralOrientationTooltip);
-            spiralOrientation = (Orientation)EditorGUILayout.EnumPopup(spiralOrientationContent, spiralOrientation);
-            GUILayout.EndHorizontal();
-            #endregion
-
-            #region Look At Center?
-            GUILayout.BeginHorizontal();
-            DrawBulletPoint("#FD6D40");
-            GUIContent lookAtSpiralCenterContent = new GUIContent("Look At Center?", lookAtSpiralCenterTooltip);
-            lookAtSpiralCenter = EditorGUILayout.Toggle(lookAtSpiralCenterContent, lookAtSpiralCenter);
-            GUILayout.EndHorizontal();
-            #endregion
-        }
-        // Random
-        else if (transformMode == 5)
-        {
-            GUILayout.Space(12);
-
-            // Toggle wide mode.
-            ToggleWideMode(180f);
-
-            #region Randomize Position?
-            GUIContent randomizePositionContent = new GUIContent("Randomize Position?", randomizePositionTooltip);
-            randomizePosition = GUILayout.Toggle(randomizePosition, randomizePositionContent);
-            if (randomizePosition)
-            {
-                #region Distance Range
+                #region Translate
                 GUILayout.BeginHorizontal();
-                // Calculate minimum distance & clamp it to prevent its value from going over the maximum distance.
-                minDistance = Mathf.Clamp(Mathf.Round(minDistance), 0f, maxDistance);
-                // Calculate maximum distance & clamp it to prevent its value from going under the minimum distance.
-                maxDistance = Mathf.Clamp(Mathf.Round(maxDistance), minDistance, 1000);
+                DrawBulletPoint("#FD6D40");
+                Texture2D linkPositionIcon = linkPosition ? linkOnIcon : linkOffIcon;
+                GUIContent positionContent = new GUIContent("Translate (Offset):", positionTooltip);
+                GUIContent resetPositionContent = new GUIContent("↺", resetPositionTooltip);
+                GUIContent linkPositionContent = new GUIContent(linkPositionIcon, linkPositionTooltip);
+                GUILayout.Label(positionContent);
+                linkPosition = GUILayout.Toggle(linkPosition, linkPositionContent, buttonStyle);
 
-                DrawBulletPoint("#FD6D40", 1);
-                GUIContent distanceRangeContent = new GUIContent("Distance Range:", distanceRangeTooltip);
-                GUILayout.Label(distanceRangeContent);
-                minDistance = EditorGUILayout.FloatField(minDistance);
-                EditorGUILayout.MinMaxSlider(ref minDistance, ref maxDistance, 0f, 1000f);
-                maxDistance = EditorGUILayout.FloatField(maxDistance);
+                float zPos = linkPosition ? positionProp.x : positionProp.z;
+                GUIContent xPositionContent = new GUIContent("X", "X-position value");
+                GUIContent yPositionContent = new GUIContent("Y", "Y-position value");
+                GUIContent zPositionContent = new GUIContent("Z", "Z-position value");
+                positionProp.x = DrawVectorComponent(xPositionContent, positionProp.x, "#FD6D40", true);
+                positionProp.y = DrawVectorComponent(yPositionContent, linkPosition ? positionProp.x : positionProp.y, "#B1FD59", !linkPosition);
+                positionProp.z = DrawVectorComponent(zPositionContent, zPos, "#7FD6FD", !linkPosition);
+
+                isDefaultPosition = positionProp == Vector3.zero;
+                GUI.backgroundColor = isDefaultPosition ? Color.white : AddColor("#70e04a");
+                GUI.enabled = !isDefaultPosition;
+                if (GUILayout.Button(resetPositionContent, buttonStyle))
+                {
+                    ResetTransformPropertyToZero(ref positionProp);
+                }
+                GUI.enabled = true;
+                GUI.backgroundColor = Color.white;
+                GUILayout.EndHorizontal();
+                #endregion
+                #region Rotate
+                // Toggle wide mode.
+                ToggleWideMode(12f);
+
+                GUILayout.BeginHorizontal();
+                DrawBulletPoint("#FD6D40");
+                Texture2D linkRotationIcon = linkRotation ? linkOnIcon : linkOffIcon;
+                GUIContent rotationContent = new GUIContent("Rotate (Offset):     ", rotationTooltip);
+                GUIContent resetRotationContent = new GUIContent("↺", resetRotationTooltip);
+                GUIContent linkRotationContent = new GUIContent(linkRotationIcon, linkRotationTooltip);
+                GUILayout.Label(rotationContent);
+                linkRotation = GUILayout.Toggle(linkRotation, linkRotationContent, buttonStyle);
+
+                float zRot = linkRotation ? rotationProp.x : rotationProp.z;
+                GUIContent xRotationContent = new GUIContent("X", "X-rotation value");
+                GUIContent yRotationContent = new GUIContent("Y", "Y-rotation value");
+                GUIContent zRotationContent = new GUIContent("Z", "Z-rotation value");
+                rotationProp.x = DrawVectorComponent(xRotationContent, rotationProp.x, "#FD6D40", true);
+                rotationProp.y = DrawVectorComponent(yRotationContent, linkRotation ? rotationProp.x : rotationProp.y, "#B1FD59", !linkRotation);
+                rotationProp.z = DrawVectorComponent(zRotationContent, zRot, "#7FD6FD", !linkRotation);
+
+                isDefaultRotation = rotationProp == Vector3.zero;
+                GUI.backgroundColor = isDefaultRotation ? Color.white : AddColor("#70e04a");
+                GUI.enabled = !isDefaultRotation;
+                if (GUILayout.Button(resetRotationContent, buttonStyle))
+                {
+                    ResetTransformPropertyToZero(ref rotationProp);
+                }
+                GUI.enabled = true;
+                GUI.backgroundColor = Color.white;
+                GUILayout.EndHorizontal();
+                #endregion
+                #region Scale
+                // Toggle wide mode.
+                ToggleWideMode(12f);
+
+                GUILayout.BeginHorizontal();
+                DrawBulletPoint("#FD6D40");
+                Texture2D linkScaleIcon = linkScale ? linkOnIcon : linkOffIcon;
+                GUIContent scaleContent = new GUIContent("Scale (Offset):       ", scaleTooltip);
+                GUIContent resetScaleContent = new GUIContent("↺", resetScaleTooltip);
+                GUIContent linkScaleContent = new GUIContent(linkScaleIcon, linkScaleTooltip);
+                GUILayout.Label(scaleContent);
+                linkScale = GUILayout.Toggle(linkScale, linkScaleContent, buttonStyle);
+
+                float zScale = linkScale ? scaleProp.x : scaleProp.z;
+                GUIContent xScaleContent = new GUIContent("X", "X-scale value");
+                GUIContent yScaleContent = new GUIContent("Y", "Y-scale value");
+                GUIContent zScaleContent = new GUIContent("Z", "Z-scale value");
+                scaleProp.x = DrawVectorComponent(xScaleContent, scaleProp.x, "#FD6D40", true);
+                scaleProp.y = DrawVectorComponent(yScaleContent, linkScale ? scaleProp.x : scaleProp.y, "#B1FD59", !linkScale);
+                scaleProp.z = DrawVectorComponent(zScaleContent, zScale, "#7FD6FD", !linkScale);
+
+                isDefaultScale = scaleProp == Vector3.zero;
+                GUI.backgroundColor = isDefaultScale ? Color.white : AddColor("#70e04a");
+                GUI.enabled = !isDefaultScale;
+                if (GUILayout.Button(resetScaleContent, buttonStyle))
+                {
+                    ResetTransformPropertyToZero(ref scaleProp);
+                }
+                GUI.enabled = true;
+                GUI.backgroundColor = Color.white;
+                GUILayout.EndHorizontal();
+                #endregion
+                break;
+            // Transform Mode: Circle
+            case TransformMode.Circle:
+                // Toggle wide mode.
+                ToggleWideMode(180f);
+
+                #region Radius
+                GUILayout.BeginHorizontal();
+                DrawBulletPoint("#FD6D40");
+                GUIContent radiusContent = new GUIContent("Radius:", radiusTooltip);
+                radialDistance = EditorGUILayout.Slider(radiusContent, radialDistance, 0f, 100f);
                 GUILayout.EndHorizontal();
                 #endregion
 
-                #region Lock Position (X)?
+                #region Degree Measure
                 GUILayout.BeginHorizontal();
-                DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockPositionXContent = new GUIContent("Lock Position (X)?", lockPositionXTooltip);
-                lockPositionX = EditorGUILayout.Toggle(lockPositionXContent, lockPositionX);
+                DrawBulletPoint("#FD6D40");
+                GUIContent areaContent = new GUIContent("Degree Measure:", degreeMeasureTooltip);
+                degreeMeasure = (DegreeMeasure)EditorGUILayout.Popup(areaContent, (int)degreeMeasure, degreeMeasureOptions);
                 GUILayout.EndHorizontal();
                 #endregion
 
-                #region Lock Position (Y)?
+                #region Orientation
                 GUILayout.BeginHorizontal();
-                DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockPositionYContent = new GUIContent("Lock Position (Y)?", lockPositionYTooltip);
-                lockPositionY = EditorGUILayout.Toggle(lockPositionYContent, lockPositionY);
+                DrawBulletPoint("#FD6D40");
+                GUIContent orientationContent = new GUIContent("Orientation:", circleOrientationTooltip);
+                circleOrientation = (Orientation)EditorGUILayout.EnumPopup(orientationContent, circleOrientation);
                 GUILayout.EndHorizontal();
                 #endregion
 
-                #region Lock Position (Z)?
+                #region Look At Center?
                 GUILayout.BeginHorizontal();
-                DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockPositionZContent = new GUIContent("Lock Position (Z)?", lockPositionZTooltip);
-                lockPositionZ = EditorGUILayout.Toggle(lockPositionZContent, lockPositionZ);
+                DrawBulletPoint("#FD6D40");
+                GUIContent lookAtCenterContent = new GUIContent("Look At Center?", lookAtCenterTooltip);
+                lookAtCenter = EditorGUILayout.Toggle(lookAtCenterContent, lookAtCenter);
                 GUILayout.EndHorizontal();
                 #endregion
-            }
-            #endregion
+                break;
+            // Transform Mode: Spiral
+            case TransformMode.Spiral:
+                // Toggle wide mode.
+                ToggleWideMode(180f);
 
-            DrawLine(GetColorFromHexString("#555555"), 1, 12f);
-
-            #region Randomize Rotation?
-            GUIContent randomizeRotationContent = new GUIContent("Randomize Rotation?", randomizeRotationTooltip);
-            randomizeRotation = GUILayout.Toggle(randomizeRotation, randomizeRotationContent);
-            if (randomizeRotation)
-            {
-                #region Lock Pitch (X)?
+                #region Curve Amount
                 GUILayout.BeginHorizontal();
-                DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockPitchContent = new GUIContent("Lock Pitch (X)?", lockRotationXTooltip);
-                lockPitch = EditorGUILayout.Toggle(lockPitchContent, lockPitch);
+                DrawBulletPoint("#FD6D40");
+                GUIContent curveAmountContent = new GUIContent("Curve Amount:", curveAmountTooltip);
+                curveAmount = EditorGUILayout.Slider(curveAmountContent, curveAmount, 0f, 100f);
                 GUILayout.EndHorizontal();
                 #endregion
 
-                #region Lock Yaw (Y)?
+                #region Orientation
                 GUILayout.BeginHorizontal();
-                DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockYawContent = new GUIContent("Lock Yaw (Y)?", lockRotationYTooltip);
-                lockYaw = EditorGUILayout.Toggle(lockYawContent, lockYaw);
+                DrawBulletPoint("#FD6D40");
+                GUIContent spiralOrientationContent = new GUIContent("Orientation:", spiralOrientationTooltip);
+                spiralOrientation = (Orientation)EditorGUILayout.EnumPopup(spiralOrientationContent, spiralOrientation);
                 GUILayout.EndHorizontal();
                 #endregion
 
-                #region Lock Roll (Z)?
+                #region Look At Center?
                 GUILayout.BeginHorizontal();
-                DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockRollContent = new GUIContent("Lock Roll (Z)?", lockRotationZTooltip);
-                lockRoll = EditorGUILayout.Toggle(lockRollContent, lockRoll);
+                DrawBulletPoint("#FD6D40");
+                GUIContent lookAtSpiralCenterContent = new GUIContent("Look At Center?", lookAtSpiralCenterTooltip);
+                lookAtSpiralCenter = EditorGUILayout.Toggle(lookAtSpiralCenterContent, lookAtSpiralCenter);
                 GUILayout.EndHorizontal();
                 #endregion
-            }
-            #endregion
+                break;
+            // Transform Mode: Random
+            case TransformMode.Random:
+                GUILayout.Space(12);
 
-            DrawLine(GetColorFromHexString("#555555"), 1, 12f);
+                // Toggle wide mode.
+                ToggleWideMode(180f);
 
-            #region Randomize Scale?
-            GUIContent randomizeScaleContent = new GUIContent("Randomize Scale?", randomizeScaleTooltip);
-            randomizeScale = GUILayout.Toggle(randomizeScale, randomizeScaleContent);
-            if (randomizeScale)
-            {
-                #region Scale Range
-                GUILayout.BeginHorizontal();
-                // Calculate minimum scale & clamp it to prevent its value from going over the maximum scale.
-                minScale = Mathf.Clamp(minScale, 0f, maxScale);
-                // Calculate maximum scale & clamp it to prevent its value from going under the minimum scale.
-                maxScale = Mathf.Clamp(maxScale, minScale, absoluteMaxScaleValue);
+                #region Randomize Position?
+                GUIContent randomizePositionContent = new GUIContent("Randomize Position?", randomizePositionTooltip);
+                randomizePosition = GUILayout.Toggle(randomizePosition, randomizePositionContent);
+                if (randomizePosition)
+                {
+                    #region Distance Range
+                    GUILayout.BeginHorizontal();
+                    // Calculate minimum distance & clamp it to prevent its value from going over the maximum distance.
+                    minDistance = Mathf.Clamp(Mathf.Round(minDistance), 0f, maxDistance);
+                    // Calculate maximum distance & clamp it to prevent its value from going under the minimum distance.
+                    maxDistance = Mathf.Clamp(Mathf.Round(maxDistance), minDistance, 1000);
 
-                DrawBulletPoint("#FD6D40", 1);
-                GUIContent scaleRangeContent = new GUIContent("Scale Range:", scaleRangeTooltip);
-                GUILayout.Label(scaleRangeContent);
-                minScale = EditorGUILayout.FloatField(minScale);
-                EditorGUILayout.MinMaxSlider(ref minScale, ref maxScale, 0f, absoluteMaxScaleValue);
-                maxScale = EditorGUILayout.FloatField(maxScale);
-                GUILayout.EndHorizontal();
+                    DrawBulletPoint("#FD6D40", 1);
+                    GUIContent distanceRangeContent = new GUIContent("Distance Range:", distanceRangeTooltip);
+                    GUILayout.Label(distanceRangeContent);
+                    minDistance = EditorGUILayout.FloatField(minDistance);
+                    EditorGUILayout.MinMaxSlider(ref minDistance, ref maxDistance, 0f, 1000f);
+                    maxDistance = EditorGUILayout.FloatField(maxDistance);
+                    GUILayout.EndHorizontal();
+                    #endregion
+
+                    #region Lock Position (X)?
+                    GUILayout.BeginHorizontal();
+                    DrawBulletPoint("#FD6D40", 1);
+                    GUIContent lockPositionXContent = new GUIContent("Lock Position (X)?", lockPositionXTooltip);
+                    lockPositionX = EditorGUILayout.Toggle(lockPositionXContent, lockPositionX);
+                    GUILayout.EndHorizontal();
+                    #endregion
+
+                    #region Lock Position (Y)?
+                    GUILayout.BeginHorizontal();
+                    DrawBulletPoint("#FD6D40", 1);
+                    GUIContent lockPositionYContent = new GUIContent("Lock Position (Y)?", lockPositionYTooltip);
+                    lockPositionY = EditorGUILayout.Toggle(lockPositionYContent, lockPositionY);
+                    GUILayout.EndHorizontal();
+                    #endregion
+
+                    #region Lock Position (Z)?
+                    GUILayout.BeginHorizontal();
+                    DrawBulletPoint("#FD6D40", 1);
+                    GUIContent lockPositionZContent = new GUIContent("Lock Position (Z)?", lockPositionZTooltip);
+                    lockPositionZ = EditorGUILayout.Toggle(lockPositionZContent, lockPositionZ);
+                    GUILayout.EndHorizontal();
+                    #endregion
+                }
                 #endregion
 
-                #region Lock Scale (X)?
-                GUILayout.BeginHorizontal();
-                DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockScaleXContent = new GUIContent("Lock Scale (X)?", lockScaleXTooltip);
-                lockScaleX = EditorGUILayout.Toggle(lockScaleXContent, lockScaleX);
-                GUILayout.EndHorizontal();
+                DrawLine(GetColorFromHexString("#555555"), 1, 12f);
+
+                #region Randomize Rotation?
+                GUIContent randomizeRotationContent = new GUIContent("Randomize Rotation?", randomizeRotationTooltip);
+                randomizeRotation = GUILayout.Toggle(randomizeRotation, randomizeRotationContent);
+                if (randomizeRotation)
+                {
+                    #region Lock Pitch (X)?
+                    GUILayout.BeginHorizontal();
+                    DrawBulletPoint("#FD6D40", 1);
+                    GUIContent lockPitchContent = new GUIContent("Lock Pitch (X)?", lockRotationXTooltip);
+                    lockPitch = EditorGUILayout.Toggle(lockPitchContent, lockPitch);
+                    GUILayout.EndHorizontal();
+                    #endregion
+
+                    #region Lock Yaw (Y)?
+                    GUILayout.BeginHorizontal();
+                    DrawBulletPoint("#FD6D40", 1);
+                    GUIContent lockYawContent = new GUIContent("Lock Yaw (Y)?", lockRotationYTooltip);
+                    lockYaw = EditorGUILayout.Toggle(lockYawContent, lockYaw);
+                    GUILayout.EndHorizontal();
+                    #endregion
+
+                    #region Lock Roll (Z)?
+                    GUILayout.BeginHorizontal();
+                    DrawBulletPoint("#FD6D40", 1);
+                    GUIContent lockRollContent = new GUIContent("Lock Roll (Z)?", lockRotationZTooltip);
+                    lockRoll = EditorGUILayout.Toggle(lockRollContent, lockRoll);
+                    GUILayout.EndHorizontal();
+                    #endregion
+                }
                 #endregion
 
-                #region Lock Scale (Y)?
-                GUILayout.BeginHorizontal();
-                DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockScaleYContent = new GUIContent("Lock Scale (Y)?", lockScaleYTooltip);
-                lockScaleY = EditorGUILayout.Toggle(lockScaleYContent, lockScaleY);
-                GUILayout.EndHorizontal();
+                DrawLine(GetColorFromHexString("#555555"), 1, 12f);
+
+                #region Randomize Scale?
+                GUIContent randomizeScaleContent = new GUIContent("Randomize Scale?", randomizeScaleTooltip);
+                randomizeScale = GUILayout.Toggle(randomizeScale, randomizeScaleContent);
+                if (randomizeScale)
+                {
+                    #region Scale Range
+                    GUILayout.BeginHorizontal();
+                    // Calculate minimum scale & clamp it to prevent its value from going over the maximum scale.
+                    minScale = Mathf.Clamp(minScale, 0f, maxScale);
+                    // Calculate maximum scale & clamp it to prevent its value from going under the minimum scale.
+                    maxScale = Mathf.Clamp(maxScale, minScale, absoluteMaxScaleValue);
+
+                    DrawBulletPoint("#FD6D40", 1);
+                    GUIContent scaleRangeContent = new GUIContent("Scale Range:", scaleRangeTooltip);
+                    GUILayout.Label(scaleRangeContent);
+                    minScale = EditorGUILayout.FloatField(minScale);
+                    EditorGUILayout.MinMaxSlider(ref minScale, ref maxScale, 0f, absoluteMaxScaleValue);
+                    maxScale = EditorGUILayout.FloatField(maxScale);
+                    GUILayout.EndHorizontal();
+                    #endregion
+
+                    #region Lock Scale (X)?
+                    GUILayout.BeginHorizontal();
+                    DrawBulletPoint("#FD6D40", 1);
+                    GUIContent lockScaleXContent = new GUIContent("Lock Scale (X)?", lockScaleXTooltip);
+                    lockScaleX = EditorGUILayout.Toggle(lockScaleXContent, lockScaleX);
+                    GUILayout.EndHorizontal();
+                    #endregion
+
+                    #region Lock Scale (Y)?
+                    GUILayout.BeginHorizontal();
+                    DrawBulletPoint("#FD6D40", 1);
+                    GUIContent lockScaleYContent = new GUIContent("Lock Scale (Y)?", lockScaleYTooltip);
+                    lockScaleY = EditorGUILayout.Toggle(lockScaleYContent, lockScaleY);
+                    GUILayout.EndHorizontal();
+                    #endregion
+
+                    #region Lock Scale (Z)?
+                    GUILayout.BeginHorizontal();
+                    DrawBulletPoint("#FD6D40", 1);
+                    GUIContent lockScaleZContent = new GUIContent("Lock Scale (Z)?", lockScaleZTooltip);
+                    lockScaleZ = EditorGUILayout.Toggle(lockScaleZContent, lockScaleZ);
+                    GUILayout.EndHorizontal();
+                    #endregion
+                }
                 #endregion
 
-                #region Lock Scale (Z)?
-                GUILayout.BeginHorizontal();
-                DrawBulletPoint("#FD6D40", 1);
-                GUIContent lockScaleZContent = new GUIContent("Lock Scale (Z)?", lockScaleZTooltip);
-                lockScaleZ = EditorGUILayout.Toggle(lockScaleZContent, lockScaleZ);
-                GUILayout.EndHorizontal();
-                #endregion
-            }
-            #endregion
-
-            GUILayout.Space(12);
+                GUILayout.Space(12);
+                break;
         }
         GUILayout.EndVertical();
     }
