@@ -8,14 +8,6 @@ using UnityEditor;
 public class DuplicateSpecialToolEditor : EditorWindow
 {
     #region Enums
-    public enum TransformMode
-    {
-        Line = 0,
-        Circle = 1,
-        Spiral = 2,
-        Random = 3
-    }
-
     public enum NamingMethod
     {
         Numbers = 0,
@@ -28,7 +20,16 @@ public class DuplicateSpecialToolEditor : EditorWindow
         This = 1,
         Parent = 2,
         World = 3,
-        NewGroup = 4,
+        NewGroup = 4
+    }
+
+    public enum TransformMode
+    {
+        Line = 0,
+        Grid = 1,
+        Circle = 2,
+        Spiral = 3,
+        Random = 4
     }
 
     public enum Orientation
@@ -65,7 +66,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
     #region Number of Copies
     // Property: Selected GameObject.
-    private GameObject selectedGameObject;
+    private static GameObject selectedGameObject;
 
     // Property: Number of copies.
     private int numOfCopies = 1;
@@ -179,10 +180,11 @@ public class DuplicateSpecialToolEditor : EditorWindow
     #region Transform
     private bool showTransformSection = false;
     private TransformMode transformMode = TransformMode.Line;
-    private readonly string[] transformModes = new string[] { "Line", "Circle", "Spiral", "Random" };
+    private readonly string[] transformModes = new string[] { "Line", "Grid", "Circle", "Spiral", "Random" };
     private readonly string[] transformModeTooltips = new string[]
     {
         "Set the position, rotation, and scale of all duplicate(s) along a line.",
+        "Arrange all duplicate(s) on a structured grid.",
         "Arrange all duplicate(s) in a circular pattern.",
         "Arrange all duplicate(s) in a spiral pattern.",
         "Randomly set the position, rotation, and scale of all duplicate(s)."
@@ -215,7 +217,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private Vector3 scaleProp = Vector3.zero;
     private bool isDefaultScale;
     private bool linkScale = false;
-    private readonly string scaleTooltip = "Scale duplicate(s) on a given axis/axes. ";
+    private readonly string scaleTooltip = "Scale duplicate(s) on a given axis/axes.";
     private readonly string linkScaleTooltip = "Link the axes to set uniform scale values for all axes.\n" +
                                                "Unlink the axes to set different scale values for the X, Y, and Z " +
                                                "axis properties.";
@@ -224,7 +226,26 @@ public class DuplicateSpecialToolEditor : EditorWindow
     #endregion
     #endregion
 
-    // Grid Mode
+    #region Grid Mode
+    private Vector3Int gridSize = Vector3Int.one;
+    private Vector3 gridSpacing = Vector3.zero;
+    private bool isDefaultGridSize;
+    private bool isDefaultGridSpacing;
+    private bool linkGridSize = false;
+    private bool linkGridSpacing = false;
+    private readonly string gridSizeTooltip = "Specify the size of the grid.";
+    private readonly string gridSpacingTooltip = "Specify the spacing between the duplicates.";
+    private readonly string linkGridSizeTooltip = "Link the axes to set uniform grid size values for all axes.\n" +
+                                                  "Unlink the axes to set different grid size values for the X, Y, and Z " +
+                                                  "axis properties.";
+    private readonly string resetGridSizeTooltip = "Reset grid size values to their default values.\n\n" +
+                                                   "Default grid size is (X: 1.0, Y: 1.0, Z: 1.0).";
+    private readonly string linkGridSpacingTooltip = "Link the axes to set uniform grid spacing values for all axes.\n" +
+                                                  "Unlink the axes to set different grid spacing values for the X, Y, and Z " +
+                                                  "axis properties.";
+    private readonly string resetGridSpacingTooltip = "Reset grid spacing values to their default values.\n\n" +
+                                                   "Default grid spacing is (X: 0.0, Y: 0.0, Z: 0.0).";
+    #endregion
 
     #region Circle Mode
     private float radialDistance = 0f;
@@ -335,9 +356,9 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private void OnEnable()
     {
         // Set Selected GameObject.
-        if (Selection.activeObject != null)
+        if (Selection.activeGameObject != null)
         {
-            selectedGameObject = (GameObject)Selection.activeObject; // ERROR
+            selectedGameObject = Selection.activeGameObject;
         }
 
         // Initialize duplicates cache.
@@ -516,26 +537,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
     }
 
     #region Duplicate Special Tool Method(s)
-    /// <summary>
-    /// Reset transform property to (0,0,0).
-    /// </summary>
-    /// <param name="v">Specified vector.</param>
-    /// <param name="defaultValue">Default value.</param>
-    private void ResetTransformPropertyToZero(ref Vector3 v)
-    {
-        v = Vector3.zero;
-    }
-
-    private void SetNameSeparatorToggles(bool bAddParentheses, bool bAddBrackets, bool bAddBraces,
-                                         bool bAddUnderscore, bool bAddHyphen)
-    {
-        addParentheses = bAddParentheses;
-        addBrackets = bAddBrackets;
-        addBraces = bAddBraces;
-        addUnderscore = bAddUnderscore;
-        addHyphen = bAddHyphen;
-    }
-
     private string GetCustomTemplateName(int gameObjectPrefixNum, int gameObjectSuffixNum)
     {
         string selectedName = selectedGameObject != null ? selectedGameObject.name : string.Empty;
@@ -812,6 +813,9 @@ public class DuplicateSpecialToolEditor : EditorWindow
             case TransformMode.Line:
                 DistributeDuplicatesLinearly(duplicatedObjects);
                 break;
+            case TransformMode.Grid:
+                DistributeDuplicatesOnGrid(duplicatedObjects);
+                break;
             case TransformMode.Circle:
                 DistributeDuplicatesInCircle(duplicatedObjects);
                 break;
@@ -850,6 +854,30 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
             // Increment index.
             index++;
+        }
+    }
+
+    /// <summary>
+    /// Distribute all duplicate(s) on a grid.
+    /// </summary>
+    /// <param name="duplicatedObjects">Duplicated objects.</param>
+    private void DistributeDuplicatesOnGrid(List<GameObject> duplicatedObjects)
+    {
+        int index = 0;
+        Vector3 origin = selectedGameObject != null ? selectedGameObject.transform.position : Vector3.zero;
+
+        for (int x = 0; x < gridSize.x; x++)
+        {
+            for (int y = 0; y < gridSize.y; y++)
+            {
+                for (int z = 0; z < gridSize.z; z++)
+                {
+                    GameObject duplicatedObj = duplicatedObjects[index++];
+                    Vector3 position = origin;
+                    Vector3 gridPosition = new Vector3(gridSpacing.x * (x + 1), gridSpacing.y * (y + 1), gridSpacing.z * (z + 1));
+                    duplicatedObj.transform.position = position + gridPosition;
+                }
+            }
         }
     }
 
@@ -1541,15 +1569,16 @@ public class DuplicateSpecialToolEditor : EditorWindow
         // Toggle wide mode.
         ToggleWideMode(12f);
 
+        GUIStyle buttonStyle = new GUIStyle(GUI.skin.button)
+        {
+            fixedWidth = 24,
+            fixedHeight = 24
+        };
+
         switch (transformMode)
         {
             // Transform Mode: Line
             case TransformMode.Line:
-                GUIStyle buttonStyle = new GUIStyle(GUI.skin.button)
-                {
-                    fixedWidth = 24,
-                    fixedHeight = 24
-                };
 
                 #region Translate
                 GUILayout.BeginHorizontal();
@@ -1574,7 +1603,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 GUI.enabled = !isDefaultPosition;
                 if (GUILayout.Button(resetPositionContent, buttonStyle))
                 {
-                    ResetTransformPropertyToZero(ref positionProp);
+                    positionProp = Vector3.zero;
                 }
                 GUI.enabled = true;
                 GUI.backgroundColor = Color.white;
@@ -1606,7 +1635,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 GUI.enabled = !isDefaultRotation;
                 if (GUILayout.Button(resetRotationContent, buttonStyle))
                 {
-                    ResetTransformPropertyToZero(ref rotationProp);
+                    rotationProp = Vector3.zero;
                 }
                 GUI.enabled = true;
                 GUI.backgroundColor = Color.white;
@@ -1638,7 +1667,68 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 GUI.enabled = !isDefaultScale;
                 if (GUILayout.Button(resetScaleContent, buttonStyle))
                 {
-                    ResetTransformPropertyToZero(ref scaleProp);
+                    scaleProp = Vector3.zero;
+                }
+                GUI.enabled = true;
+                GUI.backgroundColor = Color.white;
+                GUILayout.EndHorizontal();
+                #endregion
+                break;
+            // Transform Mode: Grid
+            case TransformMode.Grid:
+                #region Grid Size
+                GUILayout.BeginHorizontal();
+                DrawBulletPoint("#FD6D40");
+                Texture2D linkGridSizeIcon = linkGridSize ? linkOnIcon : linkOffIcon;
+                GUIContent gridSizeContent = new GUIContent("Grid Size:               ", gridSizeTooltip);
+                GUIContent resetGridSizeContent = new GUIContent("↺", resetGridSizeTooltip);
+                GUIContent linkGridSizeContent = new GUIContent(linkGridSizeIcon, linkGridSizeTooltip);
+                GUILayout.Label(gridSizeContent);
+                linkGridSize = GUILayout.Toggle(linkGridSize, linkGridSizeContent, buttonStyle);
+
+                int zSize = linkGridSize ? gridSize.x : gridSize.z;
+                GUIContent xSizeContent = new GUIContent("X", "X-size value");
+                GUIContent ySizeContent = new GUIContent("Y", "Y-size value");
+                GUIContent zSizeContent = new GUIContent("Z", "Z-size value");
+                gridSize.x = DrawVectorIntComponent(xSizeContent, gridSize.x, "#FD6D40", true);
+                gridSize.y = DrawVectorIntComponent(ySizeContent, linkGridSize ? gridSize.x : gridSize.y, "#B1FD59", !linkGridSize);
+                gridSize.z = DrawVectorIntComponent(zSizeContent, zSize, "#7FD6FD", !linkGridSize);
+
+                isDefaultGridSize = gridSize == Vector3Int.one;
+                GUI.backgroundColor = isDefaultGridSize ? Color.white : AddColor("#70e04a");
+                GUI.enabled = !isDefaultGridSize;
+                if (GUILayout.Button(resetGridSizeContent, buttonStyle))
+                {
+                    gridSize = Vector3Int.one;
+                }
+                GUI.enabled = true;
+                GUI.backgroundColor = Color.white;
+                GUILayout.EndHorizontal();
+                #endregion
+                #region Grid Spacing
+                GUILayout.BeginHorizontal();
+                DrawBulletPoint("#FD6D40");
+                Texture2D linkGridSpacingIcon = linkGridSpacing ? linkOnIcon : linkOffIcon;
+                GUIContent gridSpacingContent = new GUIContent("Grid Spacing:        ", gridSpacingTooltip);
+                GUIContent resetGridSpacingContent = new GUIContent("↺", resetGridSpacingTooltip);
+                GUIContent linkGridSpacingContent = new GUIContent(linkGridSpacingIcon, linkGridSpacingTooltip);
+                GUILayout.Label(gridSpacingContent);
+                linkGridSpacing = GUILayout.Toggle(linkGridSpacing, linkGridSpacingContent, buttonStyle);
+
+                float zSpacing = linkGridSpacing ? gridSpacing.x : gridSpacing.z;
+                GUIContent xSpacingContent = new GUIContent("X", "X-spacing value");
+                GUIContent ySpacingContent = new GUIContent("Y", "Y-spacing value");
+                GUIContent zSpacingContent = new GUIContent("Z", "Z-spacing value");
+                gridSpacing.x = DrawVectorComponent(xSpacingContent, gridSpacing.x, "#FD6D40", true);
+                gridSpacing.y = DrawVectorComponent(ySpacingContent, linkGridSpacing ? gridSpacing.x : gridSpacing.y, "#B1FD59", !linkGridSpacing);
+                gridSpacing.z = DrawVectorComponent(zSpacingContent, zSpacing, "#7FD6FD", !linkGridSpacing);
+
+                isDefaultGridSpacing = gridSpacing == Vector3.zero;
+                GUI.backgroundColor = isDefaultGridSpacing ? Color.white : AddColor("#70e04a");
+                GUI.enabled = !isDefaultGridSpacing;
+                if (GUILayout.Button(resetGridSpacingContent, buttonStyle))
+                {
+                    gridSpacing = Vector3.zero;
                 }
                 GUI.enabled = true;
                 GUI.backgroundColor = Color.white;
@@ -1888,6 +1978,31 @@ public class DuplicateSpecialToolEditor : EditorWindow
         GUI.enabled = isEnabled;
         GUI.contentColor = isEnabled ? AddColor(Color.white) : Color.white;
         value = EditorGUILayout.FloatField(guiContent, value);
+        GUI.contentColor = Color.white;
+        GUI.enabled = true;
+        GUILayout.EndHorizontal();
+        GUI.backgroundColor = Color.white;
+
+        return value;
+    }
+
+    private int DrawVectorIntComponent(GUIContent guiContent, int value, string boxColor, params bool[] conditions)
+    {
+        bool isEnabled = true;
+        foreach (bool condition in conditions)
+        {
+            if (condition)
+                continue;
+
+            isEnabled = false;
+            break;
+        }
+
+        GUI.backgroundColor = isEnabled ? AddColor(boxColor) * 1.1f : AddColor(boxColor) * 0.75f;
+        GUILayout.BeginHorizontal(EditorStyles.helpBox);
+        GUI.enabled = isEnabled;
+        GUI.contentColor = isEnabled ? AddColor(Color.white) : Color.white;
+        value = EditorGUILayout.IntField(guiContent, value);
         GUI.contentColor = Color.white;
         GUI.enabled = true;
         GUILayout.EndHorizontal();
