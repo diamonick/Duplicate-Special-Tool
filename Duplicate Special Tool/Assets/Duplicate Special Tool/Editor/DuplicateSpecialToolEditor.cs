@@ -52,15 +52,15 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private Vector2 scrollPosition;
 
     // Banner
-    private readonly string bannerPath = "Assets/Editor/Graphics/Duplicate Special Tool Banner.png";
+    private readonly string bannerPath = "Assets/Duplicate Special Tool/Editor/Graphics/Duplicate Special Tool Banner.png";
 
     // Icons
-    private readonly string numberOfCopiesIconPath = "Assets/Editor/Graphics/Icons/NumberOfCopiesIcon.png";
-    private readonly string namingConventionsIconPath = "Assets/Editor/Graphics/Icons/NamingConventionIcon.png";
-    private readonly string groupUnderIconPath = "Assets/Editor/Graphics/Icons/GroupUnderIcon.png";
-    private readonly string transformIconPath = "Assets/Editor/Graphics/Icons/TransformIcon.png";
-    private readonly string linkOnIconPath = "Assets/Editor/Graphics/Icons/LinkOnIcon.png";
-    private readonly string linkOffIconPath = "Assets/Editor/Graphics/Icons/LinkOffIcon.png";
+    private readonly string numberOfCopiesIconPath = "Assets/Duplicate Special Tool/Editor/Graphics/Icons/NumberOfCopiesIcon.png";
+    private readonly string namingConventionsIconPath = "Assets/Duplicate Special Tool/Editor/Graphics/Icons/NamingConventionIcon.png";
+    private readonly string groupUnderIconPath = "Assets/Duplicate Special Tool/Editor/Graphics/Icons/GroupUnderIcon.png";
+    private readonly string transformIconPath = "Assets/Duplicate Special Tool/Editor/Graphics/Icons/TransformIcon.png";
+    private readonly string linkOnIconPath = "Assets/Duplicate Special Tool/Editor/Graphics/Icons/LinkOnIcon.png";
+    private readonly string linkOffIconPath = "Assets/Duplicate Special Tool/Editor/Graphics/Icons/LinkOffIcon.png";
 
     #region Number of Duplicates
     private GameObject selectedGameObject;
@@ -179,11 +179,11 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private readonly string[] transformModes = new string[] { "Line", "Grid", "Circle", "Spiral", "Random" };
     private readonly string[] transformModeTooltips = new string[]
     {
-        "Set the position, rotation, and scale of all duplicate(s) along a line.",
-        "Arrange all duplicate(s) on a structured grid.",
-        "Arrange all duplicate(s) in a circular pattern.",
-        "Arrange all duplicate(s) in a spiral pattern.",
-        "Randomly set the position, rotation, and scale of all duplicate(s)."
+        "Set the position, rotation, and scale of all duplicates along a line.",
+        "Arrange all duplicates on a structured grid.",
+        "Arrange all duplicates in a circular pattern.",
+        "Arrange all duplicates in a spiral pattern.",
+        "Randomly set the position, rotation, and scale of all duplicates."
     };
 
     #region Line Mode
@@ -1209,7 +1209,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         #region Override Previous Duplicate(s)?
         EditorGUILayout.BeginHorizontal();
         DrawBulletPoint("#00E6BC");
-        GUIContent overrideContent = new GUIContent("Override Previous Duplicate(s)?", overrideDuplicatesTooltip);
+        GUIContent overrideContent = new GUIContent("Override Duplicate(s)?", overrideDuplicatesTooltip);
         overridePreviousDuplicates = EditorGUILayout.Toggle(overrideContent, overridePreviousDuplicates);
         EditorGUILayout.EndHorizontal();
         #endregion
