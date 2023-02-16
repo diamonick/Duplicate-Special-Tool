@@ -48,19 +48,20 @@ public class DuplicateSpecialToolEditor : EditorWindow
     }
     #endregion
 
+    #region Variables
     private static DuplicateSpecialToolEditor window;
     private Vector2 scrollPosition;
 
     // Banner
-    private readonly string bannerPath = "Assets/Duplicate Special Tool/Editor/Graphics/Duplicate Special Tool Banner.png";
+    private readonly string bannerPath = "Assets/Duplicate Special Tool/Textures/Duplicate Special Tool Banner.png";
 
-    // Icons
-    private readonly string numberOfCopiesIconPath = "Assets/Duplicate Special Tool/Editor/Graphics/Icons/NumberOfCopiesIcon.png";
-    private readonly string namingConventionsIconPath = "Assets/Duplicate Special Tool/Editor/Graphics/Icons/NamingConventionIcon.png";
-    private readonly string groupUnderIconPath = "Assets/Duplicate Special Tool/Editor/Graphics/Icons/GroupUnderIcon.png";
-    private readonly string transformIconPath = "Assets/Duplicate Special Tool/Editor/Graphics/Icons/TransformIcon.png";
-    private readonly string linkOnIconPath = "Assets/Duplicate Special Tool/Editor/Graphics/Icons/LinkOnIcon.png";
-    private readonly string linkOffIconPath = "Assets/Duplicate Special Tool/Editor/Graphics/Icons/LinkOffIcon.png";
+    // Icon paths (Note: Don't 
+    private readonly string numberOfCopiesIconPath = "Assets/Duplicate Special Tool/Textures/Icons/NumberOfCopiesIcon.png";
+    private readonly string namingConventionsIconPath = "Assets/Duplicate Special Tool/Textures/Icons/NamingConventionIcon.png";
+    private readonly string groupUnderIconPath = "Assets/Duplicate Special Tool/Textures/Icons/GroupUnderIcon.png";
+    private readonly string transformIconPath = "Assets/Duplicate Special Tool/Textures/Icons/TransformIcon.png";
+    private readonly string linkOnIconPath = "Assets/Duplicate Special Tool/Textures/Icons/LinkOnIcon.png";
+    private readonly string linkOffIconPath = "Assets/Duplicate Special Tool/Textures/Icons/LinkOffIcon.png";
 
     #region Number of Duplicates
     private GameObject selectedGameObject;
@@ -334,6 +335,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     #endregion
 
     private string templateName = "";
+    #endregion
 
     #region Menu Item + Validation
     /// <summary>
@@ -368,6 +370,13 @@ public class DuplicateSpecialToolEditor : EditorWindow
             duplicatesCache = new List<GameObject>();
         }
 
+        //Rect rect;
+        //float imageHeight = imageInspector.height;
+        //float imageWidth = imageInspector.width;
+        //float aspectRatio = imageHeight / imageWidth;
+        //rect = GUILayoutUtility.GetRect(imageHeight, aspectRatio * Screen.width * 0.7f);
+        //EditorGUI.DrawTextureTransparent(rect, imageInspector);
+
         // Set minimum window size.
         if (window == null)
         {
@@ -395,16 +404,12 @@ public class DuplicateSpecialToolEditor : EditorWindow
         };
 
         #region Banner
-        var banner = AssetDatabase.LoadAssetAtPath(bannerPath, typeof(Texture2D)) as Texture2D;
-        GUIStyle bannerStyle = new GUIStyle(GUI.skin.box)
-        {
-            stretchWidth = true,
-            stretchHeight = true,
-            fixedWidth = position.width - 18f,
-            fixedHeight = banner.height - 85f,
-            alignment = TextAnchor.UpperCenter
-        };
-        GUILayout.Box(banner, bannerStyle);
+        Texture2D banner = (Texture2D)AssetDatabase.LoadAssetAtPath(bannerPath, typeof(Texture2D));
+        float imageHeight = banner.height;
+        float imageWidth = banner.width;
+        float aspectRatio = imageHeight / imageWidth;
+        Rect bannerRect = GUILayoutUtility.GetRect(imageHeight, aspectRatio * Screen.width * 0.5f);
+        EditorGUI.DrawTextureTransparent(bannerRect, banner);
         #endregion
 
         DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
@@ -669,7 +674,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
             for (int i = 0; i < duplicateCount; i++)
             {
                 string assetPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(selectedGameObject);
-                GameObject go = AssetDatabase.LoadAssetAtPath(assetPath, typeof(GameObject)) as GameObject;
+                GameObject go = (GameObject)AssetDatabase.LoadAssetAtPath(assetPath, typeof(GameObject));
                 GameObject duplicatedPrefab = PrefabUtility.InstantiatePrefab(go) as GameObject;
                 Undo.RegisterCreatedObjectUndo(duplicatedPrefab, $"Duplicate {duplicateCount} Prefab Instances");
 
@@ -1587,8 +1592,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
     protected void DisplayTransformSection()
     {
         // Get textures of both link icons (ON/OFF).
-        var linkOnIcon = AssetDatabase.LoadAssetAtPath(linkOnIconPath, typeof(Texture2D)) as Texture2D;
-        var linkOffIcon = AssetDatabase.LoadAssetAtPath(linkOffIconPath, typeof(Texture2D)) as Texture2D;
+        var linkOnIcon = (Texture2D)AssetDatabase.LoadAssetAtPath(linkOnIconPath, typeof(Texture2D));
+        var linkOffIcon = (Texture2D)AssetDatabase.LoadAssetAtPath(linkOffIconPath, typeof(Texture2D));
 
         GUI.backgroundColor = AddColor("#FD6D40");
         transformMode = (TransformMode)EditorGUILayout.Popup("Mode:", (int)transformMode, transformModes);
@@ -2070,7 +2075,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
     protected void DrawSection(string header, ref bool foldout, UnityAction ue, string iconPath, Color boxColor)
     {
-        var icon = AssetDatabase.LoadAssetAtPath(iconPath, typeof(Texture2D)) as Texture2D;
+        var icon = (Texture2D)AssetDatabase.LoadAssetAtPath(iconPath, typeof(Texture2D));
         EditorGUIUtility.SetIconSize(new Vector2(28f, 28f));
 
         GUI.backgroundColor = boxColor;
