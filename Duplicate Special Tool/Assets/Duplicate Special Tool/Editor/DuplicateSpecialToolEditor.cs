@@ -16,9 +16,9 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
     public enum GroupUnder
     {
-        None = 0,
+        Parent = 0,
         This = 1,
-        Parent = 2,
+        GameObject = 2,
         World = 3,
         NewGroup = 4
     }
@@ -49,13 +49,15 @@ public class DuplicateSpecialToolEditor : EditorWindow
     #endregion
 
     #region Variables
-    private static DuplicateSpecialToolEditor window;
-    private Vector2 scrollPosition;
+    private static DuplicateSpecialToolEditor window;   // Editor window
+    private Vector2 scrollPosition;                     // Current scroll position
 
     // Banner
+    // Note: Make sure to import the package(s) under Assets to have the banner display properly in the editor window.
     private readonly string bannerPath = "Assets/Duplicate Special Tool/Textures/Duplicate Special Tool Banner.png";
 
-    // Icon paths (Note: Don't 
+    // Icon paths
+    // Note: Make sure to import the package(s) under Assets to have all icons display properly in the editor window.
     private readonly string numberOfCopiesIconPath = "Assets/Duplicate Special Tool/Textures/Icons/NumberOfCopiesIcon.png";
     private readonly string namingConventionsIconPath = "Assets/Duplicate Special Tool/Textures/Icons/NamingConventionIcon.png";
     private readonly string groupUnderIconPath = "Assets/Duplicate Special Tool/Textures/Icons/GroupUnderIcon.png";
@@ -64,12 +66,16 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private readonly string linkOffIconPath = "Assets/Duplicate Special Tool/Textures/Icons/LinkOffIcon.png";
 
     #region Number of Duplicates
+    private bool showNumberOfCopiesSection = true;
     private GameObject selectedGameObject;
     private List<GameObject> duplicatesCache;
 
     private int duplicateCount = 1;
     private bool overridePreviousDuplicates = false;
     private bool unpackPrefab = false;
+    private bool isPrefab = false;
+
+    #region Tooltips
     private readonly string selectedGameObjectTooltip = "The selected GameObject to duplicate.";
     private readonly string duplicateCountTooltip =  "Specify the number of duplicates to create from the selected GameObject.\n\n" +
                                                      "The range is from 1 to 1000.";
@@ -78,20 +84,19 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private readonly string unpackPrefabTooltip = "When enabled, it will instantiate clone(s) of the prefab. If you want to " +
                                                   "preserve the prefab connection to the selected prefab, uncheck this checkbox.\n\n" +
                                                   "Note: This option is disabled if the selected GameObject is not a prefab.";
-    private bool isPrefab = false;
-
-    // Section Fields
-    private bool showNumberOfCopiesSection = true;
+    #endregion
     #endregion
 
     #region Naming Conventions
-    // Numbers Settings
+    private bool showNamingConventionsSection = false;
     private NamingMethod namingMethodType = NamingMethod.Numbers;
     private readonly string[] namingMethodTooltips = new string[]
     {
         "Format names for new GameObject(s) via numerating through each duplicate.",
         "Customize how duplicate(s) should be named via prefixes, suffixes, numerations, etc."
     };
+
+    #region Numbers
     private int numOfLeadingDigits = 0;
     private int countFromNumbers = 0;
     private int incrementByNumbers = 1;
@@ -103,8 +108,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private bool addBraces = false;
     private bool addUnderscore = false;
     private bool addHyphen = false;
-
-    // Custom Settings
+    #endregion
+    #region Custom
     private bool replaceFullName = false;
     private string replacementName = "New GameObject";
     private string prefixName;
@@ -129,7 +134,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private bool addBracesSuffix = false;
     private bool addUnderscoreSuffix = false;
     private bool addHyphenSuffix = false;
-
+    #endregion
+    #region Tooltips
     private string namingMethodTooltip = "Specify how duplicated object(s) should be named.";
     private string renameFullNameTooltip = "Enable this to set a new name for all duplicates.";
     private string replaceInNameTooltip = "The selected GameObject's name to replace.";
@@ -148,30 +154,28 @@ public class DuplicateSpecialToolEditor : EditorWindow
     private string suffixTooltip = "Type in a word to add after each duplicate’s name.";
     private string numerateSuffixTooltip = "Enable this to enumerate through all duplicates’ suffix names by number.";
     private string addSuffixSpaceTooltip = "Enable this to add a space between the name and the number (suffix).";
-
-    // Section Fields
-    private bool showNamingConventionsSection = false;
+    #endregion
     #endregion
 
     #region Group Under
-    private GameObject groupParent = null;
+    private bool showGroupUnderSection = false;
+    private GameObject groupObject = null;
     private GameObject groupRelative = null;
     private string newGroupName = "New Group";
+    private int groupUnderNum = 0;
+    private GroupUnder groupUnderType { get { return (GroupUnder)groupUnderNum; } }
+
     private readonly string[] groupUnderTypeTooltips = new string[]
     {
-        "Groups the duplicate(s) next to the selected GameObject.",
-        "Groups the duplicate(s) under the selected GameObject.",
-        "Groups the duplicate(s) under the specified parent.",
-        "Groups the duplicate(s) in the world.",
+        "Groups duplicate(s) under the selected GameObject's parent.",
+        "Groups duplicate(s) under the selected GameObject.",
+        "Groups duplicate(s) under the specified GameObject.",
+        "Groups duplicate(s) in the world.",
         "Creates a new group GameObject to group the duplicate(s) under."
     };
     private readonly string groupUnderTooltip = "The GameObject to group all duplicates under.";
     private readonly string groupThisUnderTooltip = "The GameObject to group the new group of duplicates under.";
 
-    // Section Fields
-    private bool showGroupUnderSection = false;
-    private int groupUnderNum = 0;
-    private GroupUnder groupUnderType { get { return (GroupUnder)groupUnderNum; } }
     #endregion
 
     #region Transform
@@ -322,14 +326,14 @@ public class DuplicateSpecialToolEditor : EditorWindow
     #endregion
     #endregion
 
-    #region Information
+    #region Other Tooltips
     private readonly string expandSectionsTooltip = "Click this button to expand all sections and show its contents.";
     private readonly string collapseSectionsTooltip = "Click this button to collapse all sections and hide its contents.";
     private readonly string documentationTooltip = "Click this button to see the official documentation on how to use " +
                                                    "the Duplicate Special Tool.";
     #endregion
 
-    #region Button(s) Footer
+    #region Footer Tooltips
     private readonly string duplicateTooltip = "Duplicate multiple instances of the selected gameObject.";
     private readonly string closeTooltip = "Close the editor window.";
     #endregion
@@ -350,40 +354,39 @@ public class DuplicateSpecialToolEditor : EditorWindow
     }
 
     /// <summary>
-    /// Validation Function: Allow opening the Duplicate Special tool window only if one (1) gameObject is selected.
+    /// Validation Function: Allow opening the Duplicate Special tool editor window only if one (1) gameObject is selected.
     /// </summary>
     /// <returns>TRUE if only one (1) gameObject is selected. Otherwise, FALSE.</returns>
     [MenuItem("GameObject/Duplicate Special", true)]
     private static bool DuplicateSpecialValidation() => Selection.gameObjects.Length == 1;
     #endregion
 
+    /// <summary>
+    /// Editor GUI.
+    /// </summary>
     private void OnGUI()
     {
-        // Set Selected GameObject.
+        // Set selected GameObject.
         if (Selection.activeGameObject != null && selectedGameObject == null)
         {
             selectedGameObject = Selection.activeGameObject;
         }
 
+        // Initialize duplicates cache if it is null.
         if (duplicatesCache == null)
         {
             duplicatesCache = new List<GameObject>();
         }
 
-        //Rect rect;
-        //float imageHeight = imageInspector.height;
-        //float imageWidth = imageInspector.width;
-        //float aspectRatio = imageHeight / imageWidth;
-        //rect = GUILayoutUtility.GetRect(imageHeight, aspectRatio * Screen.width * 0.7f);
-        //EditorGUI.DrawTextureTransparent(rect, imageInspector);
-
-        // Set minimum window size.
+        // Get window.
         if (window == null)
         {
             window = GetWindow<DuplicateSpecialToolEditor>("Duplicate Special V1.0");
         }
+        // Update scroll position in the editor window.
         scrollPosition = GUILayout.BeginScrollView(scrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar);
 
+        // Set minimum & maximum window size (Docked/Windowed).
         if (window.docked)
         {
             window.minSize = new Vector2(540f, 200f);
@@ -404,11 +407,12 @@ public class DuplicateSpecialToolEditor : EditorWindow
         };
 
         #region Banner
+        // Get banner image texture.
         Texture2D banner = (Texture2D)AssetDatabase.LoadAssetAtPath(bannerPath, typeof(Texture2D));
-        float imageHeight = banner.height;
-        float imageWidth = banner.width;
-        float aspectRatio = imageHeight / imageWidth;
-        Rect bannerRect = GUILayoutUtility.GetRect(imageHeight, aspectRatio * Screen.width * 0.5f);
+        float bannerHeight = banner.height;                 // Banner height
+        float bannerWidth = banner.width;                   // Banner width
+        float aspectRatio = bannerHeight / bannerWidth;     // Aspect ratio
+        Rect bannerRect = GUILayoutUtility.GetRect(bannerHeight, aspectRatio * Screen.width * 0.5f);
         EditorGUI.DrawTextureTransparent(bannerRect, banner);
         #endregion
 
@@ -440,7 +444,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
         // Toggle wide mode.
         ToggleWideMode(180f);
 
-        #region Button(s) Footer
         GUILayout.FlexibleSpace();
         GUILayout.EndScrollView();
 
@@ -496,6 +499,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
         }
         #endregion
 
+        #region Button(s) Footer
+
         DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
 
         GUILayout.BeginHorizontal();
@@ -529,6 +534,12 @@ public class DuplicateSpecialToolEditor : EditorWindow
     }
 
     #region Duplicate Special Tool Method(s)
+    /// <summary>
+    /// Get the template name based on the settings configured for customizing duplicate names. 
+    /// </summary>
+    /// <param name="gameObjectPrefixNum">The gameObject's current number (Prefix).</param>
+    /// <param name="gameObjectSuffixNum">The gameObject's current number (Suffix).</param>
+    /// <returns>Formatted template name.</returns>
     private string GetCustomTemplateName(int gameObjectPrefixNum, int gameObjectSuffixNum)
     {
         string selectedName = selectedGameObject != null ? selectedGameObject.name : string.Empty;
@@ -589,10 +600,15 @@ public class DuplicateSpecialToolEditor : EditorWindow
         return templateName;
     }
 
-    private string GetNumericalTemplateName(int gameObjectNum)
+    /// <summary>
+    /// Get the template name based on the settings configured for numerating duplicate names.
+    /// </summary>
+    /// <param name="gameObjectSuffixNum">The gameObject's current number (Suffix).</param>
+    /// <returns>Formatted template name.</returns>
+    private string GetNumericalTemplateName(int gameObjectSuffixNum)
     {
         string space = addSpace ? " " : string.Empty;
-        string numericalSuffix = gameObjectNum.ToString();
+        string numericalSuffix = gameObjectSuffixNum.ToString();
         string selectedName = selectedGameObject != null ? selectedGameObject.name : string.Empty;
 
         // Add leading zeros "0" before the starting number.
@@ -613,23 +629,31 @@ public class DuplicateSpecialToolEditor : EditorWindow
         return templateName;
     }
 
+    /// <summary>
+    /// Get the name of the GameObject the duplicates are going to be grouped under.
+    /// </summary>
+    /// <returns>The name of the GameObject the duplicates are going to be grouped under.</returns>
     private string GetGroupUnderName()
     {
         string name = "N/A";
 
         switch (groupUnderType)
         {
-            case GroupUnder.None:
+            // Parent
+            case GroupUnder.Parent:
                 if (selectedGameObject == null)
                     break;
                 name = selectedGameObject.transform.parent != null ? selectedGameObject.transform.parent.name : name;
                 break;
+            // This
             case GroupUnder.This:
                 name = selectedGameObject != null ? selectedGameObject.name : name;
                 break;
-            case GroupUnder.Parent:
-                name = groupParent != null ? groupParent.name : name;
+            // GameObject
+            case GroupUnder.GameObject:
+                name = groupObject != null ? groupObject.name : name;
                 break;
+            // New Group
             case GroupUnder.NewGroup:
                 name = newGroupName;
                 break;
@@ -643,6 +667,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// </summary>
     private void DuplicateObjects()
     {
+        // Don't create duplicate(s) if there's no gameObject selected for duplication.
         if (selectedGameObject == null)
             return;
 
@@ -669,6 +694,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
             duplicatesCache.Clear();
         }
 
+        // If the selected GameObject is a prefab and the Unpack Prefab(s)? setting is TRUE,
+        // create multiple prefab instances.
         if (isPrefab && !unpackPrefab)
         {
             for (int i = 0; i < duplicateCount; i++)
@@ -685,6 +712,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 duplicatedObjects.Add(duplicatedPrefab);
             }
         }
+        // Otherwise, create generic duplicate(s) of the selected GameObject.
         else
         {
             for (int i = 0; i < duplicateCount; i++)
@@ -699,6 +727,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 duplicatedObjects.Add(duplicatedObj);
             }
         }
+
         GameObject newGroup = null;
         // If user chooses to group duplicate(s) under a new group, create a new group.
         if (groupUnderType == GroupUnder.NewGroup)
@@ -748,17 +777,17 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
         switch (groupUnderType)
         {
-            // None
-            case GroupUnder.None:
+            // Parent
+            case GroupUnder.Parent:
                 target = selectedGameObject.transform.parent != null ? selectedGameObject.transform.parent : null;
                 break;
             // This
             case GroupUnder.This:
                 target = selectedGameObject.transform;
                 break;
-            // Parent
-            case GroupUnder.Parent:
-                target = groupParent != null ? groupParent.transform : null;
+            // GameObject
+            case GroupUnder.GameObject:
+                target = groupObject != null ? groupObject.transform : null;
                 break;
             // World
             case GroupUnder.World:
@@ -772,6 +801,10 @@ public class DuplicateSpecialToolEditor : EditorWindow
         return target;
     }
 
+    /// <summary>
+    /// Set names for all duplicates.
+    /// </summary>
+    /// <param name="duplicatedObjects">Duplicated objects.</param>
     private void SetNames(List<GameObject> duplicatedObjects)
     {
         int index = 0;
@@ -803,7 +836,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
         }
     }
 
-
     #region Positional Method(s)
     /// <summary>
     /// Set the positions of all duplicates.
@@ -813,18 +845,23 @@ public class DuplicateSpecialToolEditor : EditorWindow
     {
         switch (transformMode)
         {
+            // Transform Mode: Line
             case TransformMode.Line:
                 DistributeDuplicatesLinearly(duplicatedObjects);
                 break;
+            // Transform Mode: Grid
             case TransformMode.Grid:
                 DistributeDuplicatesOnGrid(duplicatedObjects);
                 break;
+            // Transform Mode: Circle
             case TransformMode.Circle:
                 DistributeDuplicatesInCircle(duplicatedObjects);
                 break;
+            // Transform Mode: Spiral
             case TransformMode.Spiral:
                 DistributeDuplicatesInSpiral(duplicatedObjects);
                 break;
+            // Transform Mode: Random
             case TransformMode.Random:
                 if (randomizePosition)
                 {
@@ -905,12 +942,15 @@ public class DuplicateSpecialToolEditor : EditorWindow
             {
                 switch (circleOrientation)
                 {
+                    // X-Orientation
                     case Orientation.X:
                         duplicatedObj.transform.eulerAngles = new Vector3(angle.x, 90f, angleQuotient * index);
                         break;
+                    // Y-Orientation
                     case Orientation.Y:
                         duplicatedObj.transform.eulerAngles = new Vector3(angle.x, -angleQuotient * index, -90f);
                         break;
+                    // Z-Orientation
                     case Orientation.Z:
                         duplicatedObj.transform.eulerAngles = new Vector3(angle.x, angle.y, (angleQuotient * index) - 90f);
                         break;
@@ -922,32 +962,41 @@ public class DuplicateSpecialToolEditor : EditorWindow
         }
     }
 
+    /// <summary>
+    /// Get the degree measure.
+    /// </summary>
+    /// <returns>Degree measure angle.</returns>
     private float GetDegreeMeasure()
     {
-        float arcLength = 0f;
+        float degreeMeasureAngle = 0f;
 
         switch (degreeMeasure)
         {
+            // Quarter Circle (90°)
             case DegreeMeasure.QuarterCircle:
-                arcLength = 90f;
+                degreeMeasureAngle = 90f;
                 break;
+            // Semicircle (180°)
             case DegreeMeasure.SemiCircle:
-                arcLength = 180f;
+                degreeMeasureAngle = 180f;
                 break;
+            // Three Quarter Circle (270°)
             case DegreeMeasure.ThreeQuarterCircle:
-                arcLength = 270f;
+                degreeMeasureAngle = 270f;
                 break;
+            // Full Circle (360°)
             case DegreeMeasure.FullCircle:
-                arcLength = 360f;
+                degreeMeasureAngle = 360f;
                 break;
         }
 
-        return arcLength;
+        return degreeMeasureAngle;
     }
 
     /// <summary>
     /// Distribute all duplicate(s) around a spiral.
     /// </summary>
+    /// <param name="duplicatedObjects">Duplicated objects.</param>
     private void DistributeDuplicatesInSpiral(List<GameObject> duplicatedObjects)
     {
         int index = 1;
@@ -955,12 +1004,15 @@ public class DuplicateSpecialToolEditor : EditorWindow
         Vector3 originOffset = Vector3.zero;
         switch (spiralOrientation)
         {
+            // X-Orientation
             case Orientation.X:
                 originOffset = new Vector3(spiralHeight, 0f, 0f);
                 break;
+            // Y-Orientation
             case Orientation.Y:
                 originOffset = new Vector3(0f, spiralHeight, 0f);
                 break;
+            // Z-Orientation
             case Orientation.Z:
                 originOffset = new Vector3(0f, 0f, spiralHeight);
                 break;
@@ -980,6 +1032,10 @@ public class DuplicateSpecialToolEditor : EditorWindow
         }
     }
 
+    /// <summary>
+    /// Distribute all duplicate(s) at random positions.
+    /// </summary>
+    /// <param name="duplicatedObjects">Duplicated objects.</param>
     private void DistributeDuplicatesAtRandom(List<GameObject> duplicatedObjects)
     {
         int index = 0;
@@ -1015,9 +1071,11 @@ public class DuplicateSpecialToolEditor : EditorWindow
     {
         switch (transformMode)
         {
+            // Transform Mode: Line
             case TransformMode.Line:
                 RotateDuplicatesLinearly(duplicatedObjects);
                 break;
+            // Transform Mode: Random
             case TransformMode.Random:
                 if (randomizeRotation)
                 {
@@ -1037,6 +1095,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// <summary>
     /// Rotate all duplicate(s) linearly.
     /// </summary>
+    /// <param name="duplicatedObjects">Duplicated objects.</param>
     private void RotateDuplicatesLinearly(List<GameObject> duplicatedObjects)
     {
         int index = 1;
@@ -1050,6 +1109,10 @@ public class DuplicateSpecialToolEditor : EditorWindow
         }
     }
 
+    /// <summary>
+    /// Rotate all duplicate(s) at random angles.
+    /// </summary>
+    /// <param name="duplicatedObjects">Duplicated objects.</param>
     private void RotateDuplicatesAtRandom(List<GameObject> duplicatedObjects)
     {
         Vector3 selectedGameObjectRotation = selectedGameObject.transform.eulerAngles;
@@ -1077,9 +1140,11 @@ public class DuplicateSpecialToolEditor : EditorWindow
     {
         switch (transformMode)
         {
+            // Transform Mode: Line
             case TransformMode.Line:
                 ScaleDuplicatesLinearly(duplicatedObjects);
                 break;
+            // Transform Mode: Random
             case TransformMode.Random:
                 if (randomizeScale)
                 {
@@ -1099,6 +1164,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// <summary>
     /// Scale all duplicate(s) linearly.
     /// </summary>
+    /// <param name="duplicatedObjects">Duplicated objects.</param>
     private void ScaleDuplicatesLinearly(List<GameObject> duplicatedObjects)
     {
         int index = 1;
@@ -1113,6 +1179,10 @@ public class DuplicateSpecialToolEditor : EditorWindow
         }
     }
 
+    /// <summary>
+    /// Scale all duplicate(s) at random scales.
+    /// </summary>
+    /// <param name="duplicatedObjects">Duplicated objects.</param>
     private void ScaleDuplicatesAtRandom(List<GameObject> duplicatedObjects)
     {
         Vector3 selectedGameObjectScale = selectedGameObject.transform.localScale;
@@ -1145,27 +1215,31 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// <returns>The position around the radius.</returns>
     public Vector3 GetRadialVector(Orientation orientation, Vector3 center, float radius, float angle)
     {
-        Vector3 pos;
+        Vector3 pos = Vector3.zero;
         angle -= 90f;
 
-        if (orientation == Orientation.X)
+        switch (orientation)
         {
-            pos.x = center.x;
-            pos.y = center.y + radius * -Mathf.Sin(angle * Mathf.Deg2Rad);
-            pos.z = center.z + radius * Mathf.Cos(angle * Mathf.Deg2Rad);
+            // X-Orientation
+            case Orientation.X:
+                pos.x = center.x;
+                pos.y = center.y + radius * -Mathf.Sin(angle * Mathf.Deg2Rad);
+                pos.z = center.z + radius * Mathf.Cos(angle * Mathf.Deg2Rad);
+                break;
+            // Y-Orientation
+            case Orientation.Y:
+                pos.x = center.x + radius * -Mathf.Sin(angle * Mathf.Deg2Rad);
+                pos.y = center.y;
+                pos.z = center.z + radius * Mathf.Cos(angle * Mathf.Deg2Rad);
+                break;
+            // Z-Orientation
+            case Orientation.Z:
+                pos.x = center.x + radius * -Mathf.Sin(angle * Mathf.Deg2Rad);
+                pos.y = center.y + radius * Mathf.Cos(angle * Mathf.Deg2Rad);
+                pos.z = center.z;
+                break;
         }
-        else if (orientation == Orientation.Y)
-        {
-            pos.x = center.x + radius * -Mathf.Sin(angle * Mathf.Deg2Rad);
-            pos.y = center.y;
-            pos.z = center.z + radius * Mathf.Cos(angle * Mathf.Deg2Rad);
-        }
-        else
-        {
-            pos.x = center.x + radius * -Mathf.Sin(angle * Mathf.Deg2Rad);
-            pos.y = center.y + radius * Mathf.Cos(angle * Mathf.Deg2Rad);
-            pos.z = center.z;
-        }
+
         return pos;
     }
     #endregion
@@ -1262,6 +1336,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 }
                 EditorGUILayout.EndHorizontal();
                 #endregion
+
                 #region Count From
                 EditorGUILayout.BeginHorizontal();
                 DrawBulletPoint("#00BEFF");
@@ -1277,6 +1352,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 }
                 EditorGUILayout.EndHorizontal();
                 #endregion
+
                 #region Increment By
                 EditorGUILayout.BeginHorizontal();
                 DrawBulletPoint("#00BEFF");
@@ -1350,7 +1426,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 EditorGUILayout.EndHorizontal();
                 #endregion
 
-                #region Numerate Prefix
+                #region Numerate Prefix?
                 GUIContent numeratePrefixContent = new GUIContent("Numerate Prefix?", numeratePrefixTooltip);
                 numeratePrefix = GUILayout.Toggle(numeratePrefix, numeratePrefixContent);
                 if (numeratePrefix)
@@ -1370,6 +1446,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                     }
                     EditorGUILayout.EndHorizontal();
                     #endregion
+
                     #region Count From
                     EditorGUILayout.BeginHorizontal();
                     DrawBulletPoint("#00BEFF", 1);
@@ -1385,6 +1462,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                     }
                     EditorGUILayout.EndHorizontal();
                     #endregion
+
                     #region Increment By
                     EditorGUILayout.BeginHorizontal();
                     DrawBulletPoint("#00BEFF", 1);
@@ -1427,7 +1505,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 EditorGUILayout.EndHorizontal();
                 #endregion
 
-                #region Numerate Suffix
+                #region Numerate Suffix?
                 GUIContent numerateSuffixContent = new GUIContent("Numerate Suffix?", numerateSuffixTooltip);
                 numerateSuffix = GUILayout.Toggle(numerateSuffix, numerateSuffixContent);
                 if (numerateSuffix)
@@ -1447,6 +1525,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                     }
                     EditorGUILayout.EndHorizontal();
                     #endregion
+
                     #region Count From
                     EditorGUILayout.BeginHorizontal();
                     DrawBulletPoint("#00BEFF", 1);
@@ -1462,6 +1541,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                     }
                     EditorGUILayout.EndHorizontal();
                     #endregion
+
                     #region Increment By
                     EditorGUILayout.BeginHorizontal();
                     DrawBulletPoint("#00BEFF", 1);
@@ -1511,7 +1591,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// </summary>
     protected void DisplayGroupUnderSection()
     {
-        var text = new string[] { "None", "This", "Parent", "World", "New Group" };
+        var text = new string[] { "Parent", "This", "GameObject", "World", "New Group" };
         string groupNameTooltip = string.Empty;
         string groupName = "N/A";
 
@@ -1527,58 +1607,61 @@ public class DuplicateSpecialToolEditor : EditorWindow
         DrawPopupInfoBox(groupUnderTypeTooltips[groupUnderNum], "#B282FF");
         GUILayout.Space(8);
 
-        if (groupUnderNum == 0)
+        switch (groupUnderType)
         {
-            GUILayout.BeginHorizontal();
-            GUI.enabled = false;
-            DrawBulletPoint("#B282FF");
-            Transform parent = selectedGameObject != null && selectedGameObject.transform.parent != null ? selectedGameObject.transform.parent : null;
-            GameObject parentObj = parent != null && parent.gameObject != null ? parent.gameObject : null;
-            EditorGUILayout.ObjectField(groupUnderContent, parentObj, typeof(GameObject), true);
-            GUI.enabled = true;
-            GUILayout.EndHorizontal();
-        }
-        else if (groupUnderNum == 1)
-        {
-            GUILayout.BeginHorizontal();
-            GUI.enabled = false;
-            DrawBulletPoint("#B282FF");
-            groupName = selectedGameObject != null ? selectedGameObject.name : groupName;
-            EditorGUILayout.ObjectField(groupUnderContent, selectedGameObject, typeof(GameObject), true);
-            GUI.enabled = true;
-            GUILayout.EndHorizontal();
-        }
-        else if (groupUnderNum == 2)
-        {
-            GUILayout.BeginHorizontal();
-            GUIContent groupParentContent = new GUIContent("Group Parent:", "All duplicate(s) will be grouped under the group parent.");
-            DrawBulletPoint("#B282FF");
-            groupParent = (GameObject)EditorGUILayout.ObjectField(groupParentContent, groupParent, typeof(GameObject), true);
-            groupName = groupParent != null ? groupParent.name : groupName;
-            GUILayout.EndHorizontal();
-        }
-        else if (groupUnderNum == 3)
-        {
-            GUILayout.BeginHorizontal();
-            GUI.enabled = false;
-            DrawBulletPoint("#B282FF");
-            EditorGUILayout.ObjectField(groupUnderContent, null, typeof(GameObject), true);
-            GUI.enabled = true;
-            GUILayout.EndHorizontal();
-        }
-        else if (groupUnderNum == 4)
-        {
-            GUILayout.BeginHorizontal();
-            GUIContent newGroupContent = new GUIContent("Group Name:", "The name of the new group.");
-            DrawBulletPoint("#B282FF");
-            newGroupName = EditorGUILayout.TextField(newGroupContent, newGroupName);
-            groupName = newGroupName != string.Empty ? newGroupName : groupName;
-            GUILayout.EndHorizontal();
+            // Parent
+            case GroupUnder.Parent:
+                GUILayout.BeginHorizontal();
+                GUI.enabled = false;
+                DrawBulletPoint("#B282FF");
+                Transform parent = selectedGameObject != null && selectedGameObject.transform.parent != null ? selectedGameObject.transform.parent : null;
+                GameObject parentObj = parent != null && parent.gameObject != null ? parent.gameObject : null;
+                EditorGUILayout.ObjectField(groupUnderContent, parentObj, typeof(GameObject), true);
+                GUI.enabled = true;
+                GUILayout.EndHorizontal();
+                break;
+            // This
+            case GroupUnder.This:
+                GUILayout.BeginHorizontal();
+                GUI.enabled = false;
+                DrawBulletPoint("#B282FF");
+                groupName = selectedGameObject != null ? selectedGameObject.name : groupName;
+                EditorGUILayout.ObjectField(groupUnderContent, selectedGameObject, typeof(GameObject), true);
+                GUI.enabled = true;
+                GUILayout.EndHorizontal();
+                break;
+            // GameObject
+            case GroupUnder.GameObject:
+                GUILayout.BeginHorizontal();
+                GUIContent groupObjectContent = new GUIContent("Group Object:", "All duplicate(s) will be grouped under the group object.");
+                DrawBulletPoint("#B282FF");
+                groupObject = (GameObject)EditorGUILayout.ObjectField(groupObjectContent, groupObject, typeof(GameObject), true);
+                groupName = groupObject != null ? groupObject.name : groupName;
+                GUILayout.EndHorizontal();
+                break;
+            // World
+            case GroupUnder.World:
+                GUILayout.BeginHorizontal();
+                GUI.enabled = false;
+                DrawBulletPoint("#B282FF");
+                EditorGUILayout.ObjectField(groupUnderContent, null, typeof(GameObject), true);
+                GUI.enabled = true;
+                GUILayout.EndHorizontal();
+                break;
+            // New Group
+            case GroupUnder.NewGroup:
+                GUILayout.BeginHorizontal();
+                GUIContent newGroupContent = new GUIContent("Group Name:", "The name of the new group.");
+                DrawBulletPoint("#B282FF");
+                newGroupName = EditorGUILayout.TextField(newGroupContent, newGroupName);
+                groupName = newGroupName != string.Empty ? newGroupName : groupName;
+                GUILayout.EndHorizontal();
 
-            GUILayout.BeginHorizontal();
-            DrawBulletPoint("#B282FF");
-            groupRelative = (GameObject)EditorGUILayout.ObjectField(groupThisUnderContent, groupRelative, typeof(GameObject), true);
-            GUILayout.EndHorizontal();
+                GUILayout.BeginHorizontal();
+                DrawBulletPoint("#B282FF");
+                groupRelative = (GameObject)EditorGUILayout.ObjectField(groupThisUnderContent, groupRelative, typeof(GameObject), true);
+                GUILayout.EndHorizontal();
+                break;
         }
 
         groupNameTooltip = $"Group Name: {groupName}";
@@ -1616,7 +1699,6 @@ public class DuplicateSpecialToolEditor : EditorWindow
         {
             // Transform Mode: Line
             case TransformMode.Line:
-
                 #region Translate
                 GUILayout.BeginHorizontal();
                 DrawBulletPoint("#FD6D40");
@@ -1646,6 +1728,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 GUI.backgroundColor = Color.white;
                 GUILayout.EndHorizontal();
                 #endregion
+
                 #region Rotate
                 // Toggle wide mode.
                 ToggleWideMode(12f);
@@ -1678,6 +1761,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 GUI.backgroundColor = Color.white;
                 GUILayout.EndHorizontal();
                 #endregion
+
                 #region Scale
                 // Toggle wide mode.
                 ToggleWideMode(12f);
@@ -1743,6 +1827,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 GUI.backgroundColor = Color.white;
                 GUILayout.EndHorizontal();
                 #endregion
+
                 #region Grid Spacing
                 GUILayout.BeginHorizontal();
                 DrawBulletPoint("#FD6D40");
@@ -2023,6 +2108,14 @@ public class DuplicateSpecialToolEditor : EditorWindow
     #endregion
 
     #region Draw Window Element Method(s)
+    /// <summary>
+    /// Draw boxed float field of an X, Y, or Z value.
+    /// </summary>
+    /// <param name="guiContent">The contents of a GUI element.</param>
+    /// <param name="value">Value.</param>
+    /// <param name="boxColor">Box color string (Hexadecimal).</param>
+    /// <param name="conditions">Array of conditions to check if the float field should be adjustable.</param>
+    /// <returns>Float value.</returns>
     private float DrawVectorComponent(GUIContent guiContent, float value, string boxColor, params bool[] conditions)
     {
         bool isEnabled = true;
@@ -2048,6 +2141,14 @@ public class DuplicateSpecialToolEditor : EditorWindow
         return value;
     }
 
+    /// <summary>
+    /// Draw boxed int field of an X, Y, or Z value.
+    /// </summary>
+    /// <param name="guiContent">The contents of a GUI element.</param>
+    /// <param name="value">Value.</param>
+    /// <param name="boxColor">Box color string (Hexadecimal).</param>
+    /// <param name="conditions">Array of conditions to check if the int field should be adjustable.</param>
+    /// <returns>Int value.</returns>
     private int DrawVectorIntComponent(GUIContent guiContent, int value, string boxColor, params bool[] conditions)
     {
         bool isEnabled = true;
@@ -2073,6 +2174,14 @@ public class DuplicateSpecialToolEditor : EditorWindow
         return value;
     }
 
+    /// <summary>
+    /// Draw a section body in the editor window.
+    /// </summary>
+    /// <param name="header">Header.</param>
+    /// <param name="foldout">The foldout state set by the user.</param>
+    /// <param name="ue">The Unity event to display the contents of the specified section when the foldout is TRUE.</param>
+    /// <param name="iconPath">The icon string path used to display the appropriate icon.</param>
+    /// <param name="boxColor">Box color string (Hexadecimal).</param>
     protected void DrawSection(string header, ref bool foldout, UnityAction ue, string iconPath, Color boxColor)
     {
         var icon = (Texture2D)AssetDatabase.LoadAssetAtPath(iconPath, typeof(Texture2D));
@@ -2105,6 +2214,11 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// <summary>
     /// Draw "Format number with:" box w/ multiple options.
     /// </summary>
+    /// <param name="addParenthesesOption">Boolean parameter to add parentheses ().</param>
+    /// <param name="addBracketsOption">Boolean parameter to add brackets [].</param>
+    /// <param name="addBracesOption">Boolean parameter to add braces {}.</param>
+    /// <param name="addUnderscoreOption">Boolean parameter to add underscore _.</param>
+    /// <param name="addHyphenOption">Boolean parameter to add hyphen -.</param>
     private void DrawFormatNumberBox(ref bool addParenthesesOption, ref bool addBracketsOption, ref bool addBracesOption,
                                      ref bool addUnderscoreOption, ref bool addHyphenOption)
     {
@@ -2154,7 +2268,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     }
 
     /// <summary>
-    /// Draws a line in the inspector.
+    /// Draw a line in the editor window.
     /// </summary>
     /// <param name="lineColor">Line color.</param>
     /// <param name="height">Line height.</param>
@@ -2194,6 +2308,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// Draw bullet point: "•"
     /// </summary>
     /// <param name="bulletPointColor">Bullet point color string (Hexadecimal).</param>
+    /// <param name="indents">Indention level. Default: 0</param>
     protected static void DrawBulletPoint(string bulletPointColor, int indents = 0)
     {
         // GUI Style: Bullet Point
@@ -2216,12 +2331,10 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// <summary>
     /// Toggle wide mode for the Editor GUI.
     /// </summary>
-    /// <param name="nonWideModeWidth">Minimum width (in pixels) for all labels.</param>
-    private void ToggleWideMode(float labelWidth)
+    /// <param name="labelWidth">Minimum width (in pixels) for all labels.</param>
+    private static void ToggleWideMode(float labelWidth)
     {
         EditorGUIUtility.wideMode = !EditorGUIUtility.wideMode;
-
-        // Set the minimum width (in pixels) for all fields.
         EditorGUIUtility.fieldWidth = 72;
         EditorGUIUtility.labelWidth = labelWidth;
     }
