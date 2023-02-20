@@ -409,14 +409,17 @@ public class DuplicateSpecialToolEditor : EditorWindow
         #region Banner
         // Get banner image texture.
         Texture2D banner = (Texture2D)AssetDatabase.LoadAssetAtPath(bannerPath, typeof(Texture2D));
-        float bannerHeight = banner.height;                 // Banner height
-        float bannerWidth = banner.width;                   // Banner width
-        float aspectRatio = bannerHeight / bannerWidth;     // Aspect ratio
-        Rect bannerRect = GUILayoutUtility.GetRect(bannerHeight, aspectRatio * Screen.width * 0.5f);
-        EditorGUI.DrawTextureTransparent(bannerRect, banner);
+        if (banner != null)
+        {
+            float bannerHeight = banner.height;                 // Banner height
+            float bannerWidth = banner.width;                   // Banner width
+            float aspectRatio = bannerHeight / bannerWidth;     // Aspect ratio
+            Rect bannerRect = GUILayoutUtility.GetRect(bannerHeight, aspectRatio * Screen.width * 0.5f);
+            EditorGUI.DrawTextureTransparent(bannerRect, banner);
+        }
         #endregion
 
-        DrawLine(GetColorFromHexString("#aaaaaa"), 1, 4f);
+        GUILayout.Space(8f);
 
         #region Number of Duplicates
         DrawSection("Number of Duplicates", ref showNumberOfCopiesSection, DisplayNumberOfDuplicatesSection, numberOfCopiesIconPath, AddColor("#00E6BC") * 0.75f);
@@ -1705,7 +1708,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 Texture2D linkPositionIcon = linkPosition ? linkOnIcon : linkOffIcon;
                 GUIContent positionContent = new GUIContent("Translate (Offset):", positionTooltip);
                 GUIContent resetPositionContent = new GUIContent("↺", resetPositionTooltip);
-                GUIContent linkPositionContent = new GUIContent(linkPositionIcon, linkPositionTooltip);
+                string linkPositionText = linkPositionIcon == null ? "L" : "";
+                GUIContent linkPositionContent = new GUIContent(linkPositionText, linkPositionIcon, linkPositionTooltip);
                 GUILayout.Label(positionContent);
                 linkPosition = GUILayout.Toggle(linkPosition, linkPositionContent, buttonStyle);
 
@@ -1738,7 +1742,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 Texture2D linkRotationIcon = linkRotation ? linkOnIcon : linkOffIcon;
                 GUIContent rotationContent = new GUIContent("Rotate (Offset):     ", rotationTooltip);
                 GUIContent resetRotationContent = new GUIContent("↺", resetRotationTooltip);
-                GUIContent linkRotationContent = new GUIContent(linkRotationIcon, linkRotationTooltip);
+                string linkRotationText = linkRotationIcon == null ? "L" : "";
+                GUIContent linkRotationContent = new GUIContent(linkRotationText, linkRotationIcon, linkRotationTooltip);
                 GUILayout.Label(rotationContent);
                 linkRotation = GUILayout.Toggle(linkRotation, linkRotationContent, buttonStyle);
 
@@ -1771,7 +1776,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 Texture2D linkScaleIcon = linkScale ? linkOnIcon : linkOffIcon;
                 GUIContent scaleContent = new GUIContent("Scale (Offset):       ", scaleTooltip);
                 GUIContent resetScaleContent = new GUIContent("↺", resetScaleTooltip);
-                GUIContent linkScaleContent = new GUIContent(linkScaleIcon, linkScaleTooltip);
+                string linkScaleText = linkScaleIcon == null ? "L" : "";
+                GUIContent linkScaleContent = new GUIContent(linkScaleText, linkScaleIcon, linkScaleTooltip);
                 GUILayout.Label(scaleContent);
                 linkScale = GUILayout.Toggle(linkScale, linkScaleContent, buttonStyle);
 
@@ -1803,7 +1809,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 Texture2D linkGridSizeIcon = linkGridSize ? linkOnIcon : linkOffIcon;
                 GUIContent gridSizeContent = new GUIContent("Grid Size:               ", gridSizeTooltip);
                 GUIContent resetGridSizeContent = new GUIContent("↺", resetGridSizeTooltip);
-                GUIContent linkGridSizeContent = new GUIContent(linkGridSizeIcon, linkGridSizeTooltip);
+                string linkGridSizeText = linkGridSizeIcon == null ? "L" : "";
+                GUIContent linkGridSizeContent = new GUIContent(linkGridSizeText, linkGridSizeIcon, linkGridSizeTooltip);
                 GUILayout.Label(gridSizeContent);
                 linkGridSize = GUILayout.Toggle(linkGridSize, linkGridSizeContent, buttonStyle);
 
@@ -1834,7 +1841,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 Texture2D linkGridSpacingIcon = linkGridSpacing ? linkOnIcon : linkOffIcon;
                 GUIContent gridSpacingContent = new GUIContent("Grid Spacing:        ", gridSpacingTooltip);
                 GUIContent resetGridSpacingContent = new GUIContent("↺", resetGridSpacingTooltip);
-                GUIContent linkGridSpacingContent = new GUIContent(linkGridSpacingIcon, linkGridSpacingTooltip);
+                string linkGridSpacingText = linkGridSpacingIcon == null ? "L" : "";
+                GUIContent linkGridSpacingContent = new GUIContent(linkGridSpacingText, linkGridSpacingIcon, linkGridSpacingTooltip);
                 GUILayout.Label(gridSpacingContent);
                 linkGridSpacing = GUILayout.Toggle(linkGridSpacing, linkGridSpacingContent, buttonStyle);
 
