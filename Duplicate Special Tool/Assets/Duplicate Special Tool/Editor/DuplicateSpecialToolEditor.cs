@@ -584,12 +584,12 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
         if (numerateSuffix)
         {
-            if (addParenthesesSuffix) { numericalSuffix = $"{spaceBeforeSuffix}({numericalSuffix})"; }                    // Parentheses ()
-            else if (addBracketsSuffix) { numericalSuffix = $"{spaceBeforeSuffix}[{numericalSuffix}]"; }                  // Brackets []
-            else if (addBracesSuffix) { numericalSuffix = $"{spaceBeforeSuffix}{{{numericalSuffix}}}"; }                  // Braces {}
-            else if (addUnderscoreSuffix) { numericalSuffix = $"{spaceBeforeSuffix}_{suffixSpace}{numericalSuffix}"; }    // Underscore _
-            else if (addHyphenSuffix) { numericalSuffix = $"{spaceBeforeSuffix}-{suffixSpace}{numericalSuffix}"; }        // Hypen -
-            else { numericalSuffix = $"{spaceBeforeSuffix}{numericalSuffix}"; }
+            if (addParenthesesSuffix) { numericalSuffix = $"{suffixSpace}({numericalSuffix})"; }                    // Parentheses ()
+            else if (addBracketsSuffix) { numericalSuffix = $"{suffixSpace}[{numericalSuffix}]"; }                  // Brackets []
+            else if (addBracesSuffix) { numericalSuffix = $"{suffixSpace}{{{numericalSuffix}}}"; }                  // Braces {}
+            else if (addUnderscoreSuffix) { numericalSuffix = $"{suffixSpace}_{suffixSpace}{numericalSuffix}"; }    // Underscore _
+            else if (addHyphenSuffix) { numericalSuffix = $"{suffixSpace}-{suffixSpace}{numericalSuffix}"; }        // Hypen -
+            else { numericalSuffix = $"{suffixSpace}{numericalSuffix}"; }
         }
         else
         {
@@ -735,7 +735,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         // If user chooses to group duplicate(s) under a new group, create a new group.
         if (groupUnderType == GroupUnder.NewGroup)
         {
-            newGroup = Instantiate<GameObject>(selectedGameObject);
+            newGroup = new GameObject();
             Undo.RegisterCreatedObjectUndo(newGroup, $"Create New Group: {newGroupName}");
 
             if (newGroup != null)
@@ -1105,7 +1105,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         foreach (GameObject duplicatedObj in duplicatedObjects)
         {
             Vector3 rotation = rotationProp;
-            duplicatedObj.transform.eulerAngles = rotation * index;
+            duplicatedObj.transform.eulerAngles = selectedGameObject.transform.eulerAngles + (rotation * index);
 
             // Increment index.
             index++;
@@ -1618,6 +1618,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 GUI.enabled = false;
                 DrawBulletPoint("#B282FF");
                 Transform parent = selectedGameObject != null && selectedGameObject.transform.parent != null ? selectedGameObject.transform.parent : null;
+                groupName = parent != null ? parent.name : groupName;
                 GameObject parentObj = parent != null && parent.gameObject != null ? parent.gameObject : null;
                 EditorGUILayout.ObjectField(groupUnderContent, parentObj, typeof(GameObject), true);
                 GUI.enabled = true;
@@ -1875,7 +1876,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 GUILayout.BeginHorizontal();
                 DrawBulletPoint("#FD6D40");
                 GUIContent radiusContent = new GUIContent("Radius:", radiusTooltip);
-                radialDistance = EditorGUILayout.Slider(radiusContent, radialDistance, 0f, 100f);
+                radialDistance = EditorGUILayout.Slider(radiusContent, radialDistance, 0f, 1000f);
                 GUILayout.EndHorizontal();
                 #endregion
 
@@ -1912,7 +1913,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 GUILayout.BeginHorizontal();
                 DrawBulletPoint("#FD6D40");
                 GUIContent spiralRadiusContent = new GUIContent("Radius:", spiralRadiusTooltip);
-                spiralRadius = EditorGUILayout.Slider(spiralRadiusContent, spiralRadius, 0f, 100f);
+                spiralRadius = EditorGUILayout.Slider(spiralRadiusContent, spiralRadius, 0f, 1000f);
                 GUILayout.EndHorizontal();
                 #endregion
 
@@ -1928,7 +1929,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 GUILayout.BeginHorizontal();
                 DrawBulletPoint("#FD6D40");
                 GUIContent spiralHeightContent = new GUIContent("Height:", spiralHeightTooltip);
-                spiralHeight = EditorGUILayout.Slider(spiralHeightContent, spiralHeight, 0f, 100f);
+                spiralHeight = EditorGUILayout.Slider(spiralHeightContent, spiralHeight, 0f, 1000f);
                 GUILayout.EndHorizontal();
                 #endregion
 
