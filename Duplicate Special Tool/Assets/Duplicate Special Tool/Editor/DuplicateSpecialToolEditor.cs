@@ -1865,6 +1865,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
                 GUI.enabled = true;
                 GUI.backgroundColor = Color.white;
                 GUILayout.EndHorizontal();
+
+                EditorGUILayout.HelpBox("In Grid mode, the Duplicate Count setting is overridden by the grid size.", MessageType.Info);
                 #endregion
                 break;
             // Transform Mode: Circle
