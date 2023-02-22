@@ -77,7 +77,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
 
     #region Tooltips
     private readonly string selectedGameObjectTooltip = "The selected GameObject to duplicate.";
-    private readonly string duplicateCountTooltip =  "Specify the number of duplicates to create from the selected GameObject.\n\n" +
+    private readonly string duplicateCountTooltip = "Specify the number of duplicates to create from the selected GameObject.\n\n" +
                                                      "The range is from 1 to 1000.";
     private readonly string overrideDuplicatesTooltip = "When enabled, it erases the previous set of duplicates upon clicking " +
                                                         "the [Duplicate] button.";
@@ -486,7 +486,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
         }
         EditorGUILayout.HelpBox($"Selected GameObject: {objectName}\n" +
                                 $"Is Prefab?: {isPrefab}\n" +
-                                $"No. of copies: {duplicateCount}\n" +
+                                $"Duplicate Count: {duplicateCount}\n" +
                                 $"Name Template: {templateName}\n" +
                                 $"Group Under: {GetGroupUnderName()}", MessageType.Info);
 
@@ -495,8 +495,8 @@ public class DuplicateSpecialToolEditor : EditorWindow
         {
             GUI.backgroundColor = AddColor("#ffb300");
             GUI.contentColor = AddColor("#ffb300");
-            EditorGUILayout.HelpBox("No gameObject is currently selected. Please select a gameObject " +
-                                    "to continue the duplication process.", MessageType.Warning);
+            EditorGUILayout.HelpBox("No GameObject is currently selected. Please select a GameObject " +
+                                    "to duplicate.", MessageType.Warning);
             GUI.contentColor = Color.white;
             GUI.backgroundColor = Color.white;
         }
