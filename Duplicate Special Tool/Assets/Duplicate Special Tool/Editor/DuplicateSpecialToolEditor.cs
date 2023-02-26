@@ -2113,7 +2113,7 @@ public class DuplicateSpecialToolEditor : EditorWindow
     /// </summary>
     private void OpenDocumentation()
     {
-        Application.OpenURL("https://acrobat.adobe.com/link/track?uri=urn:aaid:scds:US:9d33bf0b-86e1-37f9-a687-4ffd2cd8eacb");
+        Application.OpenURL("https://acrobat.adobe.com/link/track?uri=urn:aaid:scds:US:8f514fd9-e74f-3ca8-ad32-e89264461c24");
     }
     #endregion
     #endregion
