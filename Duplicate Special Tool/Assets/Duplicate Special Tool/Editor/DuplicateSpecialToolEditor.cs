@@ -386,7 +386,7 @@ namespace DuplicateSpecialTool
             // Get window.
             if (window == null)
             {
-                window = GetWindow<DuplicateSpecialToolEditor>("Duplicate Special V1.0");
+                window = GetWindow<DuplicateSpecialToolEditor>("Duplicate Special V1.1");
             }
             // Update scroll position in the editor window.
             scrollPosition = GUILayout.BeginScrollView(scrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar);
