@@ -1,0 +1,17 @@
+The following assets below are 3D models downloaded from Kenney.
+Credit: Kenney
+Website Link: https://www.kenney.nl/
+Direct Link: https://www.kenney.nl/assets/food-kit
+
+• "Asset uses Assets/Duplicate Special Tool/3D Models/carrot.fbx under Creative Commons CC0; see Third-Party Notices.txt file in package for details".
+• "Asset uses Assets/Duplicate Special Tool/3D Models/lemon.fbx under Creative Commons CC0; see Third-Party Notices.txt file in package for details".
+• "Asset uses Assets/Duplicate Special Tool/3D Models/tomato.fbx under Creative Commons CC0; see Third-Party Notices.txt file in package for details".
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+The asset below is an HDRI file downloaded from Poly Haven.
+Credit: Greg Zaal
+Website Link: https://polyhaven.com/
+Direct Link: https://polyhaven.com/a/rooitou_park
+
+• "Asset uses Assets/Duplicate Special Tool/Skybox/rooitou_park_2k.hdr under Creative Commons CC0; see Third-Party Notices.txt file in package for details".
