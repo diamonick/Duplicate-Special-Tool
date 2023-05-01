@@ -73,6 +73,7 @@ namespace DuplicateSpecialTool
         private List<GameObject> duplicatesCache;
 
         private int duplicateCount = 1;
+        private bool markAsStatic = false;
         private bool overridePreviousDuplicates = false;
         private bool unpackPrefab = false;
         private bool isPrefab = false;
@@ -81,6 +82,8 @@ namespace DuplicateSpecialTool
         private readonly string selectedGameObjectTooltip = "The selected GameObject to duplicate.";
         private readonly string duplicateCountTooltip = "Specify the number of duplicates to create from the selected GameObject.\n\n" +
                                                          "The range is from 1 to 1000.";
+        private readonly string markAsStaticTooltip = "When enabled, it marks the selected GameObject(s) as static, " +
+                                                      "immovable GameObject(s) at runtime.";
         private readonly string overrideDuplicatesTooltip = "When enabled, it erases the previous set of duplicates upon clicking " +
                                                             "the [Duplicate] button.";
         private readonly string unpackPrefabTooltip = "When enabled, it will instantiate clone(s) of the prefab. If you want to " +
@@ -764,6 +767,9 @@ namespace DuplicateSpecialTool
             // Set the scale of all duplicates.
             SetScales(duplicatedObjects);
 
+            // Mark the 'static' property of all duplicates.
+            MarkDuplicatesAsStatic(duplicatedObjects);
+
             // Group all duplicated objects under the appropriate object.
             foreach (GameObject duplicatedObj in duplicatedObjects)
             {
@@ -804,6 +810,18 @@ namespace DuplicateSpecialTool
             }
 
             return target;
+        }
+
+        /// <summary>
+        /// Mark the static property of all duplicates.
+        /// </summary>
+        /// <param name="duplicatedObjects">Duplicated objects.</param>
+        private void MarkDuplicatesAsStatic(List<GameObject> duplicatedObjects)
+        {
+            foreach (GameObject duplicatedObj in duplicatedObjects)
+            {
+                duplicatedObj.isStatic = markAsStatic;
+            }
         }
 
         /// <summary>
@@ -1287,6 +1305,14 @@ namespace DuplicateSpecialTool
                 duplicateCount = Mathf.Clamp(duplicateCount + 1, 1, 1000);
             }
             GUI.enabled = true;
+            EditorGUILayout.EndHorizontal();
+            #endregion
+
+            #region Mark as Static?
+            EditorGUILayout.BeginHorizontal();
+            DrawBulletPoint("#00E6BC");
+            GUIContent markAsStaticContent = new GUIContent("Mark as Static?", markAsStaticTooltip);
+            markAsStatic = EditorGUILayout.Toggle(markAsStaticContent, markAsStatic);
             EditorGUILayout.EndHorizontal();
             #endregion
 
