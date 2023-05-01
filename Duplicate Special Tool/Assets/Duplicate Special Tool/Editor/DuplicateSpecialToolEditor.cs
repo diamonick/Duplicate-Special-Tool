@@ -67,6 +67,8 @@ namespace DuplicateSpecialTool
         private readonly string linkOnIconPath = "Assets/Duplicate Special Tool/Textures/Icons/LinkOnIcon.png";
         private readonly string linkOffIconPath = "Assets/Duplicate Special Tool/Textures/Icons/LinkOffIcon.png";
 
+        private static readonly string windowTitle = "Duplicate Special V1.1";
+
         #region Number of Duplicates
         private bool showNumberOfCopiesSection = true;
         private GameObject selectedGameObject;
@@ -355,7 +357,7 @@ namespace DuplicateSpecialTool
         [MenuItem("Edit/Duplicate Special %&d", false, 120)]
         public static void DisplayWindow()
         {
-            window = GetWindow<DuplicateSpecialToolEditor>("Duplicate Special V1.0");
+            window = GetWindow<DuplicateSpecialToolEditor>(windowTitle);
         }
 
         /// <summary>
@@ -386,21 +388,21 @@ namespace DuplicateSpecialTool
             // Get window.
             if (window == null)
             {
-                window = GetWindow<DuplicateSpecialToolEditor>("Duplicate Special V1.1");
+                window = GetWindow<DuplicateSpecialToolEditor>(windowTitle);
             }
             // Update scroll position in the editor window.
             scrollPosition = GUILayout.BeginScrollView(scrollPosition, false, true, GUIStyle.none, GUI.skin.verticalScrollbar);
 
-            // Set minimum & maximum window size (Docked/Windowed).
+            // Set minimum & maximum window size (Docked / Windowed).
             if (window.docked)
             {
-                window.minSize = new Vector2(540f, 200f);
-                window.maxSize = new Vector2(540f, 360f);
+                window.minSize = new Vector2(540f, 312f);
+                window.maxSize = new Vector2(1080f, 1080f);
             }
             else
             {
-                window.minSize = new Vector2(540f, 480f);
-                window.maxSize = new Vector2(540f, 720f);
+                window.minSize = new Vector2(540f, 286f);
+                window.maxSize = new Vector2(1080f, 1080f);
             }
 
             GUIStyle footerButtonStyle = new GUIStyle(GUI.skin.button)
