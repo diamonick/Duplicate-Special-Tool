@@ -776,6 +776,9 @@ namespace DuplicateSpecialTool
                 Transform target = newGroup != null ? newGroup.transform : GetGroupUnderTarget();
                 duplicatedObj.transform.SetParent(target);
             }
+
+            // Display quick notification.
+            ShowNotification();
         }
 
         /// <summary>
@@ -2367,6 +2370,15 @@ namespace DuplicateSpecialTool
         #endregion
 
         #region Miscellaneous
+
+        /// <summary>
+        /// Display quick notification to let the user know the selected GameObject has been duplicated.
+        /// </summary>
+        private void ShowNotification()
+        {
+            window.ShowNotification(new GUIContent($"Duplication Successful ✓\n\n{duplicateCount} instance(s) of\n{selectedGameObject.name} duplicated!"));
+        }
+
         /// <summary>
         /// Toggle wide mode for the Editor GUI.
         /// </summary>
