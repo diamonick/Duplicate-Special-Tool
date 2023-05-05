@@ -353,19 +353,18 @@ namespace DuplicateSpecialTool
         /// Display the Duplicate Special option in the right-click menu when a single (1) GameObject is selected.
         /// Keyboard Shortcut: ctrl-alt-D (Windows), cmd-alt-D (macOS).
         /// </summary>
-        [MenuItem("GameObject/Duplicate Special", false, 10)]
-        [MenuItem("Edit/Duplicate Special %&d", false, 120)]
+        [MenuItem("GameObject/Duplicate Special %&d", false, 10)]
         public static void DisplayWindow()
         {
             window = GetWindow<DuplicateSpecialToolEditor>(windowTitle);
         }
 
         /// <summary>
-        /// Validation Function: Allow opening the Duplicate Special tool editor window only if one (1) gameObject is selected.
+        /// Validation Function: Allow opening the Duplicate Special tool editor window only if no more than (1) gameObject is selected.
         /// </summary>
-        /// <returns>TRUE if only one (1) gameObject is selected. Otherwise, FALSE.</returns>
-        [MenuItem("GameObject/Duplicate Special", true)]
-        private static bool DuplicateSpecialValidation() => Selection.gameObjects.Length == 1;
+        /// <returns>TRUE if no more than one (1) gameObject is selected. Otherwise, FALSE.</returns>
+        [MenuItem("GameObject/Duplicate Special %&d", true)]
+        private static bool DuplicateSpecialValidation() => Selection.gameObjects.Length <= 1;
         #endregion
 
         /// <summary>
